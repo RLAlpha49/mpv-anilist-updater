@@ -77,6 +77,57 @@ class CacheEntry(TypedDict):
     current_status: Optional[str]
     ttl: float
 
+
+class GraphQLQueries:
+    """Centralized GraphQL queries for AniList API."""
+
+    # Query to get the authenticated user's ID
+    GET_VIEWER_ID = '''
+        query {
+            Viewer {
+                id
+            }
+        }
+    '''
+
+    # Query to search for anime with optional filters
+    # Variables: search (String), year (FuzzyDateInt), page (Int), onList (Boolean)
+    SEARCH_ANIME = '''
+        query($search: String, $year: FuzzyDateInt, $page: Int, $onList: Boolean) {
+            Page(page: $page) {
+                media (search: $search, type: ANIME, startDate_greater: $year, onList: $onList) {
+                    id
+                    title { romaji }
+                    season
+                    seasonYear
+                    episodes
+                    duration
+                    format
+                    status
+                    mediaListEntry {
+                        status
+                        progress
+                        media {
+                            episodes
+                        }
+                    }
+                }
+            }
+        }
+    '''
+
+    # Mutation to update user's anime list entry (progress and/or status)
+    # Variables: mediaId (Int), progress (Int), status (MediaListStatus)
+    UPDATE_MEDIA_LIST_ENTRY = '''
+        mutation ($mediaId: Int, $progress: Int, $status: MediaListStatus) {
+            SaveMediaListEntry (mediaId: $mediaId, progress: $progress, status: $status) {
+                status
+                id
+                progress
+            }
+        }
+    '''
+
 class AniListUpdater:
     """
     Handles AniList authentication, file parsing, API requests, and updating anime progress/status.
@@ -150,14 +201,8 @@ class AniListUpdater:
             return self.user_id
         if not self.access_token:
             return None
-        query = '''
-        query {
-            Viewer {
-                id
-            }
-        }
-        '''
-        response = self.make_api_request(query, None, self.access_token)
+
+        response = self.make_api_request(GraphQLQueries.GET_VIEWER_ID, None, self.access_token)
         if response and 'data' in response:
             self.user_id = response['data']['Viewer']['id']
             self.save_user_id(self.user_id)
@@ -596,33 +641,9 @@ class AniListUpdater:
         """
 
         # Only those that are in the user's list
-
-        query = '''
-            query($search: String, $year: FuzzyDateInt, $page: Int, $onList: Boolean) {
-                Page(page: $page) {
-                    media (search: $search, type: ANIME, startDate_greater: $year, onList: $onList) {
-                        id
-                        title { romaji }
-                        season
-                        seasonYear
-                        episodes
-                        duration
-                        format
-                        status
-                        mediaListEntry {
-                            status
-                            progress
-                            media {
-                                episodes
-                            }
-                        }
-                    }
-                }
-            }
-            '''
         variables = {'search': name, 'year': year or 1, 'page': 1, 'onList': True}
 
-        response = self.make_api_request(query, variables, self.access_token)
+        response = self.make_api_request(GraphQLQueries.SEARCH_ANIME, variables, self.access_token)
 
         if not response or 'data' not in response:
             return AnimeInfo(
@@ -641,7 +662,7 @@ class AniListUpdater:
             # Before erroring, if its a "launch" request we can search even if its not in the user list
             if self.ACTION == 'launch':
                 variables['onList'] = False
-                response = self.make_api_request(query, variables, self.access_token)
+                response = self.make_api_request(GraphQLQueries.SEARCH_ANIME, variables, self.access_token)
 
                 if not response or 'data' not in response:
                     return AnimeInfo(
@@ -735,22 +756,12 @@ class AniListUpdater:
             print('Setting status to REPEATING (rewatching) and updating progress for first episode of completed anime.')
 
             # Step 1: Set to REPEATING, progress=0
-            query = '''
-            mutation ($mediaId: Int, $progress: Int, $status: MediaListStatus) {
-                SaveMediaListEntry (mediaId: $mediaId, progress: $progress, status: $status) {
-                    status
-                    id
-                    progress
-                }
-            }
-            '''
-
             variables = {'mediaId': anime_id, 'progress': 0, 'status': 'REPEATING'}
-            response = self.make_api_request(query, variables, self.access_token)
+            response = self.make_api_request(GraphQLQueries.UPDATE_MEDIA_LIST_ENTRY, variables, self.access_token)
 
             # Step 2: Set progress to 1
             variables = {'mediaId': anime_id, 'progress': 1}
-            response = self.make_api_request(query, variables, self.access_token)
+            response = self.make_api_request(GraphQLQueries.UPDATE_MEDIA_LIST_ENTRY, variables, self.access_token)
 
             if response and 'data' in response:
                 updated_progress = response['data']['SaveMediaListEntry']['progress']
@@ -790,21 +801,11 @@ class AniListUpdater:
             if (current_status == 'CURRENT' and self.options['SET_TO_COMPLETED_AFTER_LAST_EPISODE_CURRENT']) or (current_status == 'REPEATING' and self.options['SET_TO_COMPLETED_AFTER_LAST_EPISODE_REWATCHING']):
                 status_to_set = "COMPLETED"
 
-        query = '''
-        mutation ($mediaId: Int, $progress: Int, $status: MediaListStatus) {
-            SaveMediaListEntry (mediaId: $mediaId, progress: $progress, status: $status) {
-                status
-                id
-                progress
-            }
-        }
-        '''
-
         variables_dict: dict[str, Any] = {'mediaId': anime_id, 'progress': file_progress}
         if status_to_set:
             variables_dict['status'] = status_to_set
 
-        response = self.make_api_request(query, variables_dict, self.access_token)
+        response = self.make_api_request(GraphQLQueries.UPDATE_MEDIA_LIST_ENTRY, variables_dict, self.access_token)
         if response and 'data' in response:
             updated_progress = response['data']['SaveMediaListEntry']['progress']
             print(f'Episode count updated successfully! New progress: {updated_progress}')
