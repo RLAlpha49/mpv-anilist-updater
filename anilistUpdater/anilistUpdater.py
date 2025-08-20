@@ -32,6 +32,50 @@ from typing import Optional, TypedDict, Any
 from guessit import guessit
 
 
+# Custom exception hierarchy for AniList updater
+class AniListUpdaterError(Exception):
+    """Base exception class for all AniList updater related errors."""
+    pass
+
+
+class ParseError(AniListUpdaterError):
+    """Raised when filename parsing fails or produces invalid results."""
+
+    def __init__(self, message: str, filename: Optional[str] = None, guess_result: Optional[dict] = None):
+        self.filename = filename
+        self.guess_result = guess_result
+        super().__init__(message)
+
+
+class MatchAmbiguousError(AniListUpdaterError):
+    """Raised when multiple potential anime matches are found and disambiguation is needed."""
+
+    def __init__(self, message: str, search_term: str, matches: Optional[list] = None):
+        self.search_term = search_term
+        self.matches = matches or []
+        super().__init__(message)
+
+
+class NotInListError(AniListUpdaterError):
+    """Raised when the anime is not found in the user's AniList."""
+
+    def __init__(self, message: str, anime_name: str, in_list_search: bool = True):
+        self.anime_name = anime_name
+        self.in_list_search = in_list_search
+        super().__init__(message)
+
+
+class ApiError(AniListUpdaterError):
+    """Raised when AniList API requests fail or return unexpected responses."""
+
+    def __init__(self, message: str, status_code: Optional[int] = None, response_text: Optional[str] = None, query: Optional[str] = None, variables: Optional[dict] = None):
+        self.status_code = status_code
+        self.response_text = response_text
+        self.query = query
+        self.variables = variables
+        super().__init__(message)
+
+
 @dataclass
 class TokenInfo:
     """Container for AniList authentication information."""
@@ -202,11 +246,15 @@ class AniListUpdater:
         if not self.access_token:
             return None
 
-        response = self.make_api_request(GraphQLQueries.GET_VIEWER_ID, None, self.access_token)
-        if response and 'data' in response:
-            self.user_id = response['data']['Viewer']['id']
-            self.save_user_id(self.user_id)
-            return self.user_id
+        try:
+            response = self.make_api_request(GraphQLQueries.GET_VIEWER_ID, None, self.access_token)
+            if response and 'data' in response:
+                self.user_id = response['data']['Viewer']['id']
+                self.save_user_id(self.user_id)
+                return self.user_id
+        except ApiError as e:
+            print(f'Failed to get user ID: {e}')
+            return None
         return None
 
     # Cache user id
@@ -367,8 +415,9 @@ class AniListUpdater:
         # print(f"Made an API Query with: Query: {query}\nVariables: {variables} ")
         if response.status_code == 200:
             return response.json()
-        print(f'API request failed: {response.status_code} - {response.text}\nQuery: {query}\nVariables: {variables}')
-        return None
+
+        error_msg = f'API request failed: {response.status_code} - {response.text}'
+        raise ApiError(error_msg, status_code=response.status_code, response_text=response.text, query=query, variables=variables)
 
     @staticmethod
     def season_order(season):
@@ -440,7 +489,12 @@ class AniListUpdater:
         Args:
             filename: The path to the video file.
         """
-        file_info = self.parse_filename(filename)
+        try:
+            file_info = self.parse_filename(filename)
+        except ParseError:
+            # Re-raise ParseError to be handled by main()
+            raise
+
         cache_entry = self.check_and_clean_cache(filename, file_info.name)
 
         # If launching and cache has anime_id, we can skip search and open directly.
@@ -501,8 +555,7 @@ class AniListUpdater:
                     break
 
         if 'title' not in guess:
-            print(f"Couldn't find title in filename '{path_parts[-1]}'! Guess result: {guess}")
-            return path_parts
+            raise ParseError(f"Couldn't find title in filename '{path_parts[-1]}'! Guess result: {guess}", filename=path_parts[-1], guess_result=dict(guess))
 
         # Only clean up titles for some series
         cleanup_titles = ['Ranma', 'Chi', 'Bleach', 'Link Click']
@@ -643,7 +696,17 @@ class AniListUpdater:
         # Only those that are in the user's list
         variables = {'search': name, 'year': year or 1, 'page': 1, 'onList': True}
 
-        response = self.make_api_request(GraphQLQueries.SEARCH_ANIME, variables, self.access_token)
+        try:
+            response = self.make_api_request(GraphQLQueries.SEARCH_ANIME, variables, self.access_token)
+        except ApiError:
+            return AnimeInfo(
+                anime_id=None,
+                anime_name=None,
+                current_progress=None,
+                total_episodes=None,
+                file_progress=file_progress,
+                current_status=None
+            )
 
         if not response or 'data' not in response:
             return AnimeInfo(
@@ -662,7 +725,17 @@ class AniListUpdater:
             # Before erroring, if its a "launch" request we can search even if its not in the user list
             if self.ACTION == 'launch':
                 variables['onList'] = False
-                response = self.make_api_request(GraphQLQueries.SEARCH_ANIME, variables, self.access_token)
+                try:
+                    response = self.make_api_request(GraphQLQueries.SEARCH_ANIME, variables, self.access_token)
+                except ApiError:
+                    return AnimeInfo(
+                        anime_id=None,
+                        anime_name=None,
+                        current_progress=None,
+                        total_episodes=None,
+                        file_progress=file_progress,
+                        current_status=None
+                    )
 
                 if not response or 'data' not in response:
                     return AnimeInfo(
@@ -677,9 +750,9 @@ class AniListUpdater:
                 seasons = response['data']['Page']['media']
                 # If its still empty
                 if not seasons:
-                    raise Exception(f"Couldn\'t find an anime from this title! ({name})")
+                    raise NotInListError(f"Couldn't find an anime from this title! ({name})", anime_name=name, in_list_search=False)
             else:
-                raise Exception(f"Couldn\'t find an anime from this title! ({name}). Is it in your list?")
+                raise NotInListError(f"Couldn't find an anime from this title! ({name}). Is it in your list?", anime_name=name, in_list_search=True)
 
         # This is the first element, which is the same as Media(search: $search)
         entry = seasons[0]['mediaListEntry']
@@ -726,7 +799,7 @@ class AniListUpdater:
             AnimeInfo or None: Updated anime info, or None on failure.
         """
         if result is None:
-            raise Exception('Parameter in update_episode_count is null.')
+            raise ValueError('Parameter in update_episode_count is null.')
 
         anime_id = result.anime_id
         anime_name = result.anime_name
@@ -736,7 +809,7 @@ class AniListUpdater:
         current_status = result.current_status
 
         if anime_id is None:
-            raise Exception('Couldn\'t find that anime! Make sure it is on your list and the title is correct.')
+            raise NotInListError('Couldn\'t find that anime! Make sure it is on your list and the title is correct.', anime_name=anime_name or "Unknown")
 
         # Only launch anilist
         if self.ACTION == 'launch':
@@ -745,7 +818,7 @@ class AniListUpdater:
             return result
 
         if current_progress is None:
-            raise Exception('Failed to get current episode count. Is it on your list?')
+            raise NotInListError('Failed to get current episode count. Is it on your list?', anime_name=anime_name or "Unknown")
 
         # Handle completed -> rewatching on first episode
         if (current_status == 'COMPLETED' and file_progress == 1 and self.options['SET_COMPLETED_TO_REWATCHING_ON_FIRST_EPISODE']):
@@ -757,25 +830,28 @@ class AniListUpdater:
 
             # Step 1: Set to REPEATING, progress=0
             variables = {'mediaId': anime_id, 'progress': 0, 'status': 'REPEATING'}
-            response = self.make_api_request(GraphQLQueries.UPDATE_MEDIA_LIST_ENTRY, variables, self.access_token)
+            try:
+                response = self.make_api_request(GraphQLQueries.UPDATE_MEDIA_LIST_ENTRY, variables, self.access_token)
 
-            # Step 2: Set progress to 1
-            variables = {'mediaId': anime_id, 'progress': 1}
-            response = self.make_api_request(GraphQLQueries.UPDATE_MEDIA_LIST_ENTRY, variables, self.access_token)
+                # Step 2: Set progress to 1
+                variables = {'mediaId': anime_id, 'progress': 1}
+                response = self.make_api_request(GraphQLQueries.UPDATE_MEDIA_LIST_ENTRY, variables, self.access_token)
 
-            if response and 'data' in response:
-                updated_progress = response['data']['SaveMediaListEntry']['progress']
-                print(f'Episode count updated successfully! New progress: {updated_progress}')
+                if response and 'data' in response:
+                    updated_progress = response['data']['SaveMediaListEntry']['progress']
+                    print(f'Episode count updated successfully! New progress: {updated_progress}')
 
-                return AnimeInfo(
-                    anime_id=anime_id,
-                    anime_name=anime_name,
-                    current_progress=updated_progress,
-                    total_episodes=total_episodes,
-                    file_progress=1,
-                    current_status='REPEATING'
-                )
-            print('Failed to update episode count.')
+                    return AnimeInfo(
+                        anime_id=anime_id,
+                        anime_name=anime_name,
+                        current_progress=updated_progress,
+                        total_episodes=total_episodes,
+                        file_progress=1,
+                        current_status='REPEATING'
+                    )
+            except ApiError as e:
+                print(f'Failed to update episode count: {e}')
+                return None
 
             return None
 
@@ -789,12 +865,12 @@ class AniListUpdater:
 
             # If its lower than the current progress, dont update.
             if file_progress <= current_progress:
-                raise Exception(f'Episode was not new. Not updating ({file_progress} <= {current_progress})')
+                raise ValueError(f'Episode was not new. Not updating ({file_progress} <= {current_progress})')
 
             status_to_set = 'CURRENT'
 
         else:
-            raise Exception(f'Anime is not in a modifiable state (status: {current_status}). Not updating.')
+            raise ValueError(f'Anime is not in a modifiable state (status: {current_status}). Not updating.')
 
         # Set to COMPLETED if last episode and the option is enabled
         if file_progress == total_episodes:
@@ -805,20 +881,24 @@ class AniListUpdater:
         if status_to_set:
             variables_dict['status'] = status_to_set
 
-        response = self.make_api_request(GraphQLQueries.UPDATE_MEDIA_LIST_ENTRY, variables_dict, self.access_token)
-        if response and 'data' in response:
-            updated_progress = response['data']['SaveMediaListEntry']['progress']
-            print(f'Episode count updated successfully! New progress: {updated_progress}')
-            updated_status = response['data']['SaveMediaListEntry']['status']
+        try:
+            response = self.make_api_request(GraphQLQueries.UPDATE_MEDIA_LIST_ENTRY, variables_dict, self.access_token)
+            if response and 'data' in response:
+                updated_progress = response['data']['SaveMediaListEntry']['progress']
+                print(f'Episode count updated successfully! New progress: {updated_progress}')
+                updated_status = response['data']['SaveMediaListEntry']['status']
 
-            return AnimeInfo(
-                anime_id=anime_id,
-                anime_name=anime_name,
-                current_progress=updated_progress,
-                total_episodes=total_episodes,
-                file_progress=file_progress,
-                current_status=updated_status
-            )
+                return AnimeInfo(
+                    anime_id=anime_id,
+                    anime_name=anime_name,
+                    current_progress=updated_progress,
+                    total_episodes=total_episodes,
+                    file_progress=file_progress,
+                    current_status=updated_status
+                )
+        except ApiError as e:
+            print(f'Failed to update episode count: {e}')
+            return None
         print('Failed to update episode count.')
         return None
 
@@ -850,8 +930,39 @@ def main():
         updater = AniListUpdater(options, sys.argv[2])
         updater.handle_filename(sys.argv[1])
 
+    except ParseError as e:
+        print(f'PARSE ERROR: {e}')
+        if e.filename:
+            print(f'Problematic filename: {e.filename}')
+        if e.guess_result:
+            print(f'Guess result: {e.guess_result}')
+        sys.exit(1)
+    except NotInListError as e:
+        print(f'NOT IN LIST ERROR: {e}')
+        print(f'Anime: {e.anime_name}')
+        if e.in_list_search:
+            print('Suggestion: Add the anime to your AniList or check the title spelling.')
+        else:
+            print('Suggestion: The anime was not found even in general search.')
+        sys.exit(1)
+    except MatchAmbiguousError as e:
+        print(f'AMBIGUOUS MATCH ERROR: {e}')
+        print(f'Search term: {e.search_term}')
+        if e.matches:
+            print(f'Potential matches: {e.matches}')
+        sys.exit(1)
+    except ApiError as e:
+        print(f'API ERROR: {e}')
+        if e.status_code:
+            print(f'Status code: {e.status_code}')
+        if e.response_text:
+            print(f'Response: {e.response_text}')
+        sys.exit(1)
+    except AniListUpdaterError as e:
+        print(f'ANILIST UPDATER ERROR: {e}')
+        sys.exit(1)
     except Exception as e:
-        print(f'ERROR: {e}')
+        print(f'UNEXPECTED ERROR: {e}')
         sys.exit(1)
 
 if __name__ == '__main__':
