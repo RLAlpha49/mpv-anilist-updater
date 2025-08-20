@@ -3,6 +3,10 @@ mpv-anilist-updater: Automatically updates your AniList based on the file you ju
 
 This script parses anime filenames, determines the correct AniList entry, and updates your progress
 or status accordingly.
+
+Supported actions:
+- update: Normal update with caching
+- launch: Open AniList page for the anime
 """
 
 # Configuration options for anilistUpdater (set in anilistUpdater.conf):

@@ -14,6 +14,12 @@ UPDATE_PROGRESS_WHEN_REWATCHING: Boolean. If true, allow updating progress for a
 SET_TO_COMPLETED_AFTER_LAST_EPISODE_CURRENT: Boolean. If true, set to COMPLETED after last episode if status was CURRENT.
 
 SET_TO_COMPLETED_AFTER_LAST_EPISODE_REWATCHING: Boolean. If true, set to COMPLETED after last episode if status was REPEATING (rewatching).
+
+Default Hotkeys:
+- Ctrl+A: Update AniList progress
+- Ctrl+B: Launch AniList page for current anime
+- Ctrl+D: Open folder containing current video
+- Ctrl+Shift+R: Reload configuration
 ]]
 
 local utils = require 'mp.utils'
@@ -96,20 +102,6 @@ if not conf_path then
     mp.msg.warn("Could not find or create anilistUpdater.conf in any known location! Using default options.")
 end
 
--- Now load options as usual
-local options = {
-    DIRECTORIES = "",
-    EXCLUDED_DIRECTORIES = "",
-    UPDATE_PERCENTAGE = 85,
-    SET_COMPLETED_TO_REWATCHING_ON_FIRST_EPISODE = false,
-    UPDATE_PROGRESS_WHEN_REWATCHING = true,
-    SET_TO_COMPLETED_AFTER_LAST_EPISODE_CURRENT = true,
-    SET_TO_COMPLETED_AFTER_LAST_EPISODE_REWATCHING = true
-}
-if conf_path then
-    mpoptions.read_options(options, "anilistUpdater")
-end
-
 local function normalize_path(p)
     p = p:gsub("\\", "/")
     if p:sub(-1) == "/" then
@@ -118,41 +110,63 @@ local function normalize_path(p)
     return p
 end
 
--- Parse DIRECTORIES if it's a string (comma or semicolon separated)
-if type(options.DIRECTORIES) == "string" and options.DIRECTORIES ~= "" then
-    local dirs = {}
-    for dir in string.gmatch(options.DIRECTORIES, "([^,;]+)") do
-        local trimmed = (dir:gsub("^%s*(.-)%s*$", "%1"):gsub('[\'"]', '')) -- trim
-        table.insert(dirs, normalize_path(trimmed))
+-- Function to parse and normalize directory options
+local function parse_directories(dirs_string)
+    if type(dirs_string) == "string" and dirs_string ~= "" then
+        local dirs = {}
+        for dir in string.gmatch(dirs_string, "([^,;]+)") do
+            local trimmed = (dir:gsub("^%s*(.-)%s*$", "%1"):gsub('[\'"]', '')) -- trim
+            table.insert(dirs, normalize_path(trimmed))
+        end
+        return dirs
+    else
+        return {}
     end
-    options.DIRECTORIES = dirs
-elseif type(options.DIRECTORIES) == "string" then
-    options.DIRECTORIES = {}
 end
 
-if type(options.EXCLUDED_DIRECTORIES) == "string" and options.EXCLUDED_DIRECTORIES ~= "" then
-    local dirs = {}
-    for dir in string.gmatch(options.EXCLUDED_DIRECTORIES, "([^,;]+)") do
-        local trimmed = (dir:gsub("^%s*(.-)%s*$", "%1"):gsub('[\'"]', '')) -- trim
-        table.insert(dirs, normalize_path(trimmed))
+-- Function to load and parse configuration options
+local function load_and_parse_options()
+    local opts = {
+        DIRECTORIES = "",
+        EXCLUDED_DIRECTORIES = "",
+        UPDATE_PERCENTAGE = 85,
+        SET_COMPLETED_TO_REWATCHING_ON_FIRST_EPISODE = false,
+        UPDATE_PROGRESS_WHEN_REWATCHING = true,
+        SET_TO_COMPLETED_AFTER_LAST_EPISODE_CURRENT = true,
+        SET_TO_COMPLETED_AFTER_LAST_EPISODE_REWATCHING = true
+    }
+    
+    if conf_path then
+        mpoptions.read_options(opts, "anilistUpdater")
     end
-    options.EXCLUDED_DIRECTORIES = dirs
-elseif type(options.EXCLUDED_DIRECTORIES) == "string" then
-    options.EXCLUDED_DIRECTORIES = {}
+    
+    -- Parse directory strings into arrays
+    opts.DIRECTORIES = parse_directories(opts.DIRECTORIES)
+    opts.EXCLUDED_DIRECTORIES = parse_directories(opts.EXCLUDED_DIRECTORIES)
+    
+    return opts
 end
 
--- When calling Python, pass only the options relevant to it
-local python_options = {
-    SET_COMPLETED_TO_REWATCHING_ON_FIRST_EPISODE = options.SET_COMPLETED_TO_REWATCHING_ON_FIRST_EPISODE,
-    UPDATE_PROGRESS_WHEN_REWATCHING = options.UPDATE_PROGRESS_WHEN_REWATCHING,
-    SET_TO_COMPLETED_AFTER_LAST_EPISODE_CURRENT = options.SET_TO_COMPLETED_AFTER_LAST_EPISODE_CURRENT,
-    SET_TO_COMPLETED_AFTER_LAST_EPISODE_REWATCHING = options.SET_TO_COMPLETED_AFTER_LAST_EPISODE_REWATCHING
-}
-local python_options_json = utils.format_json(python_options)
+-- Function to update global variables from options
+local function update_globals_from_options(opts)
+    options = opts
+    DIRECTORIES = opts.DIRECTORIES
+    EXCLUDED_DIRECTORIES = opts.EXCLUDED_DIRECTORIES
+    UPDATE_PERCENTAGE = tonumber(opts.UPDATE_PERCENTAGE) or 85
+    
+    -- Update python_options_json
+    local new_python_options = {
+        SET_COMPLETED_TO_REWATCHING_ON_FIRST_EPISODE = opts.SET_COMPLETED_TO_REWATCHING_ON_FIRST_EPISODE,
+        UPDATE_PROGRESS_WHEN_REWATCHING = opts.UPDATE_PROGRESS_WHEN_REWATCHING,
+        SET_TO_COMPLETED_AFTER_LAST_EPISODE_CURRENT = opts.SET_TO_COMPLETED_AFTER_LAST_EPISODE_CURRENT,
+        SET_TO_COMPLETED_AFTER_LAST_EPISODE_REWATCHING = opts.SET_TO_COMPLETED_AFTER_LAST_EPISODE_REWATCHING
+    }
+    python_options_json = utils.format_json(new_python_options)
+end
 
-DIRECTORIES = options.DIRECTORIES
-EXCLUDED_DIRECTORIES = options.EXCLUDED_DIRECTORIES
-UPDATE_PERCENTAGE = tonumber(options.UPDATE_PERCENTAGE) or 85
+-- Initial configuration load
+local options = load_and_parse_options()
+update_globals_from_options(options)
 
 local function path_starts_with_any(path, directories)
     local norm_path = normalize_path(path)
@@ -166,7 +180,9 @@ end
 
 function callback(success, result, error)
     if result.status == 0 then
-        mp.osd_message("Updated anime correctly.", 4)
+        mp.osd_message("Operation completed successfully.", 4)
+    else
+        mp.osd_message("Operation failed. Check console for details.", 4)
     end
 end
 
@@ -243,6 +259,19 @@ function update_anilist(action)
     local cmd = mp.command_native_async(table, callback)
 end
 
+-- Function to reload configuration
+function reload_config()
+    mp.osd_message("Reloading anilistUpdater configuration", 2)
+    
+    -- Reload and parse options
+    local new_options = load_and_parse_options()
+    
+    -- Update all global variables
+    update_globals_from_options(new_options)
+    
+    mp.osd_message("Configuration reloaded successfully", 2)
+end
+
 mp.observe_property("percent-pos", "number", check_progress)
 
 -- Reset triggered
@@ -271,6 +300,10 @@ end)
 
 mp.add_key_binding('ctrl+b', 'launch_anilist', function()
     update_anilist("launch")
+end)
+
+mp.add_key_binding('ctrl+shift+r', 'reload_config', function()
+    reload_config()
 end)
 
 -- Open the folder that the video is
