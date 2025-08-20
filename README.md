@@ -72,6 +72,13 @@ SET_COMPLETED_TO_REWATCHING_ON_FIRST_EPISODE=no
 UPDATE_PROGRESS_WHEN_REWATCHING=yes
 SET_TO_COMPLETED_AFTER_LAST_EPISODE_CURRENT=yes
 SET_TO_COMPLETED_AFTER_LAST_EPISODE_REWATCHING=yes
+
+# Keybind configuration (leave empty to disable a keybind)
+# Examples: ctrl+a, alt+u, shift+ctrl+a, F5, etc.
+KEYBIND_UPDATE=ctrl+a
+KEYBIND_LAUNCH=ctrl+b
+KEYBIND_OPEN_FOLDER=ctrl+d
+KEYBIND_RELOAD_CONFIG=ctrl+shift+r
 ```
 
 #### Option Descriptions
@@ -85,40 +92,55 @@ SET_TO_COMPLETED_AFTER_LAST_EPISODE_REWATCHING=yes
 - **SET_TO_COMPLETED_AFTER_LAST_EPISODE_CURRENT**: `yes`/`no`. If `yes`, set to COMPLETED after last episode if status was CURRENT. **Default is `yes`.**
 - **SET_TO_COMPLETED_AFTER_LAST_EPISODE_REWATCHING**: `yes`/`no`. If `yes`, set to COMPLETED after last episode if status was REPEATING (rewatching). Default is `yes`.
 
+**Keybind Configuration:**
+
+- **KEYBIND_UPDATE**: Key combination to manually update AniList progress. Default: `ctrl+a`
+- **KEYBIND_LAUNCH**: Key combination to launch AniList page for current anime. Default: `ctrl+b`
+- **KEYBIND_OPEN_FOLDER**: Key combination to open folder containing current video. Default: `ctrl+d`
+- **KEYBIND_RELOAD_CONFIG**: Key combination to reload configuration without restarting MPV. Default: `ctrl+shift+r`
+
+> [!TIP]
+> **Keybind Examples:** `ctrl+a`, `alt+u`, `shift+ctrl+a`, `F5`, `F12`, etc. Set any keybind to an empty string to disable it.
+
 > [!NOTE]
 > All boolean options must be `yes` or `no` (not `true`/`false`).
 
 ## Usage
 
-This script has 3 keybinds:
+This script provides customizable keybinds that can be configured in your `anilistUpdater.conf` file:
 
-- Ctrl + A: Manually updates your AniList with the current episode you are watching.
-- Ctrl + B: Opens the AniList page of the anime you are watching on your browser. Useful to see if it guessed the anime correctly.
-- Ctrl + D: Opens the folder where the current video is playing. Useful if you have "your own" anime library, and navigating through folders is a pain.
+**Default Keybinds:**
+
+- **Ctrl + A**: Manually updates your AniList with the current episode you are watching.
+- **Ctrl + B**: Opens the AniList page of the anime you are watching on your browser. Useful to see if it guessed the anime correctly.
+- **Ctrl + D**: Opens the folder where the current video is playing. Useful if you have "your own" anime library, and navigating through folders is a pain.
+- **Ctrl + Shift + R**: Reloads the configuration file without restarting MPV. Any changes to keybinds or other settings take effect immediately.
+
+**Customizing Keybinds:**
+
+You can customize these keybinds by editing the `KEYBIND_*` options in your `anilistUpdater.conf` file. For example:
+
+```ini
+KEYBIND_UPDATE=F1
+KEYBIND_LAUNCH=F2
+KEYBIND_OPEN_FOLDER=F3
+KEYBIND_RELOAD_CONFIG=F12
+```
+
+To disable a specific keybind, set it to an empty value:
+
+```ini
+KEYBIND_UPDATE=ctrl+a
+KEYBIND_LAUNCH=
+KEYBIND_OPEN_FOLDER=ctrl+d
+KEYBIND_RELOAD_CONFIG=ctrl+shift+r
+```
+
+After making changes to your configuration, use the reload keybind (Ctrl+Shift+R by default) to apply the changes without restarting MPV.
+
+**Automatic Updates:**
 
 The script will automatically update your AniList when the video you are watching reaches 85% completion (or the percentage you set in the config file).
-
-You can change the keybinds in your input.conf:
-
-```bash
-A script-binding update_anilist
-B script-binding launch_anilist
-D script-binding open_folder
-```
-
-Or in the `.lua` file:
-
-```lua
-mp.add_key_binding('ctrl+a', 'update_anilist', function()
-    update_anilist("update")
-end)
-
-mp.add_key_binding('ctrl+b', 'launch_anilist', function()
-    update_anilist("launch")
-end)
-
-mp.add_key_binding('ctrl+d', 'open_folder', open_folder)
-```
 
 ## How It Works
 
