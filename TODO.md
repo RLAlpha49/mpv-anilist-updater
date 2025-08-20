@@ -14,14 +14,14 @@ Legend: ☐ not completed | ☑ completed
 	- ☑ Debounce rapid percent-pos events
 
 2. Types, Exceptions & Hotkeys
-	- PR Title: Typing, exceptions & hotkeys refactor
+	- PR Title: Typing, exceptions & hotkeys
 	- Branch Name: types-hotkeys
-	- PR Description: This adds proper typing throughout the codebase using dataclasses and TypedDicts to replace tuple returns, introduces a unified exception hierarchy, and centralizes GraphQL queries. It also adds immediate user control through multi-action hotkeys for force updating progress, reloading configuration at runtime, and clearing cache for the current show.
-	- ☐ Introduce dataclasses / TypedDicts; replace tuple returns
-	- ☐ Centralize GraphQL queries
-	- ☐ Custom exception hierarchy (ParseError, MatchAmbiguousError, NotInListError, ApiError)
-	- ☐ Multi-action hotkeys (Force update, Reload config, Clear cache for current show)
-	- ☐ Implement runtime config reload & targeted cache clear
+	- PR Description: Adds comprehensive typing using dataclasses and TypedDicts, implements unified exception hierarchy for better error handling, and centralizes GraphQL operations. Introduces hotkey for runtime config reload.
+	- ☑ Introduce dataclasses / TypedDicts; replace tuple returns
+	- ☑ Centralize GraphQL queries
+	- ☑ Custom exception hierarchy (ParseError, MatchAmbiguousError, NotInListError, ApiError)
+	- ☑ Implement runtime config reload
+	- ☑ Add configuration for keybinds
 
 3. Config & Safety Enhancements
 	- PR Title: Config expansion (auto-add, env token, trigger modes, dry-run)
