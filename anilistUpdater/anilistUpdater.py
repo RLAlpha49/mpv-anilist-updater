@@ -32,6 +32,46 @@ import requests
 from guessit import guessit
 
 
+class AniListQueries:
+    """
+    Contains all GraphQL queries and mutations for AniList API interactions.
+    """
+
+    ANIME_SEARCH = '''
+        query($search: String, $year: FuzzyDateInt, $page: Int, $onList: Boolean) {
+            Page(page: $page) {
+                media (search: $search, type: ANIME, startDate_greater: $year, onList: $onList) {
+                    id
+                    title { romaji }
+                    season
+                    seasonYear
+                    episodes
+                    duration
+                    format
+                    status
+                    mediaListEntry {
+                        status
+                        progress
+                        media {
+                            episodes
+                        }
+                    }
+                }
+            }
+        }
+    '''
+
+    UPDATE_MEDIA_LIST = '''
+        mutation ($mediaId: Int, $progress: Int, $status: MediaListStatus) {
+            SaveMediaListEntry (mediaId: $mediaId, progress: $progress, status: $status) {
+                status
+                id
+                progress
+            }
+        }
+    '''
+
+
 @dataclass
 class ParsedFilename:
     """Represents the parsed information from a filename."""
@@ -115,11 +155,11 @@ class AniListUpdater:
             print(f'Error reading access token: {e}')
             return None
 
-    def cleanup_legacy_formats(self, lines, has_legacy_user_id: bool) -> str:
+    def cleanup_legacy_formats(self, lines: List[str], has_legacy_user_id: bool) -> str:
         """
         Removes legacy cache entries and user_id from token file using already-read lines.
         Args:
-            lines (list or str): The lines already read from the token file or a single token string.
+            lines (List[str]): The lines already read from the token file.
             has_legacy_user_id (bool): Whether the first line has user_id:token format.
         """
         try:
@@ -135,16 +175,15 @@ class AniListUpdater:
             with open(self.TOKEN_PATH, 'w', encoding='utf-8') as f:
                 f.write(token + ('\n' if token else ''))
 
-            lines = token
-
             if has_legacy_user_id:
                 print('Cleaned up legacy user_id from token file.')
             if any(';;' in ln for ln in lines):
                 print('Cleaned up legacy cache entries from token file.')
         except Exception as e:
             print(f'Legacy format cleanup failed: {e}')
+            token = ''
 
-        return lines
+        return token
 
 
     def cache_to_file(self, path: str, guessed_name: str, result: AnimeInfo) -> None:
@@ -435,7 +474,7 @@ class AniListUpdater:
         return path_parts
 
     # Parse the file name using guessit
-    def parse_filename(self, filepath) -> ParsedFilename:
+    def parse_filename(self, filepath: str) -> ParsedFilename:
         """
         Parses the filename and folder structure to extract anime title, episode, season, and year.
         Args:
@@ -552,32 +591,9 @@ class AniListUpdater:
 
         # Only those that are in the user's list
 
-        query = '''
-            query($search: String, $year: FuzzyDateInt, $page: Int, $onList: Boolean) {
-                Page(page: $page) {
-                    media (search: $search, type: ANIME, startDate_greater: $year, onList: $onList) {
-                        id
-                        title { romaji }
-                        season
-                        seasonYear
-                        episodes
-                        duration
-                        format
-                        status
-                        mediaListEntry {
-                            status
-                            progress
-                            media {
-                                episodes
-                            }
-                        }
-                    }
-                }
-            }
-            '''
         variables = {'search': name, 'year': year or 1, 'page': 1, 'onList': True}
 
-        response = self.make_api_request(query, variables, self.access_token)
+        response = self.make_api_request(AniListQueries.ANIME_SEARCH, variables, self.access_token)
 
         if not response or 'data' not in response:
             return None
@@ -589,7 +605,7 @@ class AniListUpdater:
             # Before erroring, if its a "launch" request we can search even if its not in the user list
             if self.ACTION == 'launch':
                 variables['onList'] = False
-                response = self.make_api_request(query, variables, self.access_token)
+                response = self.make_api_request(AniListQueries.ANIME_SEARCH, variables, self.access_token)
 
                 if not response or 'data' not in response:
                     return None
@@ -676,22 +692,12 @@ class AniListUpdater:
             print('Setting status to REPEATING (rewatching) and updating progress for first episode of completed anime.')
 
             # Step 1: Set to REPEATING, progress=0
-            query = '''
-            mutation ($mediaId: Int, $progress: Int, $status: MediaListStatus) {
-                SaveMediaListEntry (mediaId: $mediaId, progress: $progress, status: $status) {
-                    status
-                    id
-                    progress
-                }
-            }
-            '''
-
             variables = {'mediaId': anime_id, 'progress': 0, 'status': 'REPEATING'}
-            response = self.make_api_request(query, variables, self.access_token)
+            response = self.make_api_request(AniListQueries.UPDATE_MEDIA_LIST, variables, self.access_token)
 
             # Step 2: Set progress to 1
             variables = {'mediaId': anime_id, 'progress': 1}
-            response = self.make_api_request(query, variables, self.access_token)
+            response = self.make_api_request(AniListQueries.UPDATE_MEDIA_LIST, variables, self.access_token)
 
             if response and 'data' in response:
                 updated_progress = response['data']['SaveMediaListEntry']['progress']
@@ -731,21 +737,11 @@ class AniListUpdater:
             if (current_status == 'CURRENT' and self.options['SET_TO_COMPLETED_AFTER_LAST_EPISODE_CURRENT']) or (current_status == 'REPEATING' and self.options['SET_TO_COMPLETED_AFTER_LAST_EPISODE_REWATCHING']):
                 status_to_set = "COMPLETED"
 
-        query = '''
-        mutation ($mediaId: Int, $progress: Int, $status: MediaListStatus) {
-            SaveMediaListEntry (mediaId: $mediaId, progress: $progress, status: $status) {
-                status
-                id
-                progress
-            }
-        }
-        '''
-
         variables = {'mediaId': anime_id, 'progress': file_progress}
         if status_to_set:
             variables['status'] = status_to_set
 
-        response = self.make_api_request(query, variables, self.access_token)
+        response = self.make_api_request(AniListQueries.UPDATE_MEDIA_LIST, variables, self.access_token)
         if response and 'data' in response:
             updated_progress = response['data']['SaveMediaListEntry']['progress']
             print(f'Episode count updated successfully! New progress: {updated_progress}')
