@@ -14,6 +14,12 @@ UPDATE_PROGRESS_WHEN_REWATCHING: Boolean. If true, allow updating progress for a
 SET_TO_COMPLETED_AFTER_LAST_EPISODE_CURRENT: Boolean. If true, set to COMPLETED after last episode if status was CURRENT.
 
 SET_TO_COMPLETED_AFTER_LAST_EPISODE_REWATCHING: Boolean. If true, set to COMPLETED after last episode if status was REPEATING (rewatching).
+
+KEYBIND_UPDATE_ANILIST: String. Keybind to manually update AniList progress. Default is "ctrl+a".
+
+KEYBIND_LAUNCH_ANILIST: String. Keybind to open the anime page on AniList. Default is "ctrl+b".
+
+KEYBIND_OPEN_FOLDER: String. Keybind to open the folder containing the current video file. Default is "ctrl+d".
 ]]
 
 local utils = require 'mp.utils'
@@ -61,6 +67,10 @@ SET_COMPLETED_TO_REWATCHING_ON_FIRST_EPISODE=no
 UPDATE_PROGRESS_WHEN_REWATCHING=yes
 SET_TO_COMPLETED_AFTER_LAST_EPISODE_CURRENT=yes
 SET_TO_COMPLETED_AFTER_LAST_EPISODE_REWATCHING=yes
+# Keybinds - use mpv key names (e.g., ctrl+a, shift+u, F5, etc.)
+KEYBIND_UPDATE_ANILIST=ctrl+a
+KEYBIND_LAUNCH_ANILIST=ctrl+b
+KEYBIND_OPEN_FOLDER=ctrl+d
 ]]
 
 -- Try to find config file
@@ -106,7 +116,10 @@ local options = {
     SET_COMPLETED_TO_REWATCHING_ON_FIRST_EPISODE = false,
     UPDATE_PROGRESS_WHEN_REWATCHING = true,
     SET_TO_COMPLETED_AFTER_LAST_EPISODE_CURRENT = true,
-    SET_TO_COMPLETED_AFTER_LAST_EPISODE_REWATCHING = true
+    SET_TO_COMPLETED_AFTER_LAST_EPISODE_REWATCHING = true,
+    KEYBIND_UPDATE_ANILIST = "ctrl+a",
+    KEYBIND_LAUNCH_ANILIST = "ctrl+b",
+    KEYBIND_OPEN_FOLDER = "ctrl+d"
 }
 if conf_path then
     mpoptions.read_options(options, "anilistUpdater")
@@ -278,12 +291,12 @@ mp.register_event("file-loaded", function()
     progress_timer:resume()
 end)
 
--- Keybinds, modify as you please
-mp.add_key_binding('ctrl+a', 'update_anilist', function()
+-- Keybinds - configurable via anilistUpdater.conf
+mp.add_key_binding(options.KEYBIND_UPDATE_ANILIST, 'update_anilist', function()
     update_anilist("update")
 end)
 
-mp.add_key_binding('ctrl+b', 'launch_anilist', function()
+mp.add_key_binding(options.KEYBIND_LAUNCH_ANILIST, 'launch_anilist', function()
     update_anilist("launch")
 end)
 
@@ -325,4 +338,4 @@ function open_folder()
     })
 end
 
-mp.add_key_binding('ctrl+d', 'open_folder', open_folder)
+mp.add_key_binding(options.KEYBIND_OPEN_FOLDER, 'open_folder', open_folder)
