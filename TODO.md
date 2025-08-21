@@ -13,14 +13,12 @@ Legend: ☐ not completed | ☑ completed
 	- ☑ Single token read + in-memory; redact token in debug
 	- ☑ Debounce rapid percent-pos events
 
-2. Types, Exceptions & Hotkeys
-	- PR Title: Typing, exceptions & hotkeys
+2. ☑ Types & Hotkeys
+	- PR Title: Typing & hotkeys
 	- Branch Name: types-hotkeys
-	- PR Description: Adds comprehensive typing using dataclasses and TypedDicts, implements unified exception hierarchy for better error handling, and centralizes GraphQL operations. Introduces hotkey for runtime config reload.
+	- PR Description: Adds comprehensive typing using dataclasses and TypedDicts, and centralizes GraphQL queries for better maintainability. It also introduces configuration options for keybinds.
 	- ☑ Introduce dataclasses / TypedDicts; replace tuple returns
 	- ☑ Centralize GraphQL queries
-	- ☑ Custom exception hierarchy (ParseError, MatchAmbiguousError, NotInListError, ApiError)
-	- ☑ Implement runtime config reload
 	- ☑ Add configuration for keybinds
 
 3. Config & Safety Enhancements
