@@ -20,6 +20,7 @@ Legend: ☐ not completed | ☑ completed
 	- ☑ Introduce dataclasses / TypedDicts; replace tuple returns
 	- ☑ Centralize GraphQL queries
 	- ☑ Add configuration for keybinds
+	- ☑ Update docstrings
 
 3. Config & Safety Enhancements
 	- PR Title: Config expansion (auto-add, env token, trigger modes, dry-run)
