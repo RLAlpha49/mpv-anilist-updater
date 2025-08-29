@@ -14,6 +14,14 @@ UPDATE_PROGRESS_WHEN_REWATCHING: Boolean. If true, allow updating progress for a
 SET_TO_COMPLETED_AFTER_LAST_EPISODE_CURRENT: Boolean. If true, set to COMPLETED after last episode if status was CURRENT.
 
 SET_TO_COMPLETED_AFTER_LAST_EPISODE_REWATCHING: Boolean. If true, set to COMPLETED after last episode if status was REPEATING (rewatching).
+
+ADD_ENTRY_IF_MISSING: Boolean. If true, automatically add anime to your list if it's not found during search. Default is false.
+
+KEYBIND_UPDATE_ANILIST: String. The keybind to manually update AniList. Default is "ctrl+a".
+
+KEYBIND_LAUNCH_ANILIST: String. The keybind to open AniList page in browser. Default is "ctrl+b".
+
+KEYBIND_OPEN_FOLDER: String. The keybind to open the folder containing the current video. Default is "ctrl+d".
 ]]
 
 local utils = require 'mp.utils'
@@ -22,34 +30,53 @@ local mpoptions = require("mp.options")
 local conf_name = "anilistUpdater.conf"
 local script_dir = (debug.getinfo(1).source:match("@?(.*/)") or "./")
 
--- Try script-opts directory (sibling to scripts)
-local script_opts_dir = script_dir:match("^(.-)[/\\]scripts[/\\]")
-
-if script_opts_dir then
-    script_opts_dir = utils.join_path(script_opts_dir, "script-opts")
-else
-    -- Fallback: try to find mpv config dir
-    script_opts_dir = os.getenv("APPDATA") and
-                          utils.join_path(utils.join_path(os.getenv("APPDATA"), "mpv"), "script-opts") or
-                          os.getenv("HOME") and
-                          utils.join_path(utils.join_path(utils.join_path(os.getenv("HOME"), ".config"), "mpv"),
-            "script-opts") or nil
+-- Helper function to get MPV config directory
+local function get_mpv_config_dir()
+    return os.getenv("APPDATA") and utils.join_path(os.getenv("APPDATA"), "mpv") or 
+           os.getenv("HOME") and utils.join_path(utils.join_path(os.getenv("HOME"), ".config"), "mpv") or nil
 end
 
-local script_opts_path = script_opts_dir and utils.join_path(script_opts_dir, conf_name) or nil
+-- Helper function to normalize path separators
+local function normalize_path(p)
+    p = p:gsub("\\", "/")
+    if p:sub(-1) == "/" then
+        p = p:sub(1, -2)
+    end
+    return p
+end
 
--- Try script directory
-local script_path = utils.join_path(script_dir, conf_name)
+-- Helper function to parse directory strings (comma or semicolon separated)
+local function parse_directory_string(dir_string)
+    if type(dir_string) == "string" and dir_string ~= "" then
+        local dirs = {}
+        for dir in string.gmatch(dir_string, "([^,;]+)") do
+            local trimmed = (dir:gsub("^%s*(.-)%s*$", "%1"):gsub('[\'"]', '')) -- trim
+            table.insert(dirs, normalize_path(trimmed))
+        end
+        return dirs
+    else
+        return {}
+    end
+end
 
--- Try mpv config directory
-local mpv_conf_dir = os.getenv("APPDATA") and utils.join_path(os.getenv("APPDATA"), "mpv") or os.getenv("HOME") and
-                         utils.join_path(utils.join_path(os.getenv("HOME"), ".config"), "mpv") or nil
-local mpv_conf_path = mpv_conf_dir and utils.join_path(mpv_conf_dir, conf_name) or nil
+-- Default configuration options
+local default_options = {
+    {key = "DIRECTORIES", value = "", config_value = ""},
+    {key = "EXCLUDED_DIRECTORIES", value = "", config_value = ""},
+    {key = "UPDATE_PERCENTAGE", value = 85, config_value = "85"},
+    {key = "SET_COMPLETED_TO_REWATCHING_ON_FIRST_EPISODE", value = false, config_value = "no"},
+    {key = "UPDATE_PROGRESS_WHEN_REWATCHING", value = true, config_value = "yes"},
+    {key = "SET_TO_COMPLETED_AFTER_LAST_EPISODE_CURRENT", value = true, config_value = "yes"},
+    {key = "SET_TO_COMPLETED_AFTER_LAST_EPISODE_REWATCHING", value = true, config_value = "yes"},
+    {key = "ADD_ENTRY_IF_MISSING", value = false, config_value = "no"},
+    {key = "KEYBIND_UPDATE_ANILIST", value = "ctrl+a", config_value = "ctrl+a"},
+    {key = "KEYBIND_LAUNCH_ANILIST", value = "ctrl+b", config_value = "ctrl+b"},
+    {key = "KEYBIND_OPEN_FOLDER", value = "ctrl+d", config_value = "ctrl+d"}
+}
 
-local conf_paths = {script_opts_path, script_path, mpv_conf_path}
-
-local default_conf = [[
-# Use 'yes' or 'no' for boolean options below
+-- Generate default config content
+local function generate_default_conf()
+    return [[# Use 'yes' or 'no' for boolean options below
 # Example for multiple directories (comma or semicolon separated):
 # DIRECTORIES=D:/Torrents,D:/Anime
 # or
@@ -61,7 +88,36 @@ SET_COMPLETED_TO_REWATCHING_ON_FIRST_EPISODE=no
 UPDATE_PROGRESS_WHEN_REWATCHING=yes
 SET_TO_COMPLETED_AFTER_LAST_EPISODE_CURRENT=yes
 SET_TO_COMPLETED_AFTER_LAST_EPISODE_REWATCHING=yes
+ADD_ENTRY_IF_MISSING=no
+KEYBIND_UPDATE_ANILIST=ctrl+a
+KEYBIND_LAUNCH_ANILIST=ctrl+b
+KEYBIND_OPEN_FOLDER=ctrl+d
 ]]
+end
+
+local default_conf = generate_default_conf()
+
+-- Try script-opts directory (sibling to scripts)
+local script_opts_dir = script_dir:match("^(.-)[/\\]scripts[/\\]")
+
+if script_opts_dir then
+    script_opts_dir = utils.join_path(script_opts_dir, "script-opts")
+else
+    -- Fallback: try to find mpv config dir
+    local mpv_conf_dir = get_mpv_config_dir()
+    script_opts_dir = mpv_conf_dir and utils.join_path(mpv_conf_dir, "script-opts") or nil
+end
+
+local script_opts_path = script_opts_dir and utils.join_path(script_opts_dir, conf_name) or nil
+
+-- Try script directory
+local script_path = utils.join_path(script_dir, conf_name)
+
+-- Try mpv config directory
+local mpv_conf_dir = get_mpv_config_dir()
+local mpv_conf_path = mpv_conf_dir and utils.join_path(mpv_conf_dir, conf_name) or nil
+
+local conf_paths = {script_opts_path, script_path, mpv_conf_path}
 
 -- Try to find config file
 local conf_path = nil
@@ -86,7 +142,7 @@ if not conf_path then
                 f:write(default_conf)
                 f:close()
                 conf_path = path
-                print("Created config at: " .. path)
+                -- print("Created config at: " .. path)
                 break
             end
         end
@@ -98,57 +154,54 @@ if not conf_path then
     mp.msg.warn("Could not find or create anilistUpdater.conf in any known location! Using default options.")
 end
 
--- Now load options as usual
-local options = {
-    DIRECTORIES = "",
-    EXCLUDED_DIRECTORIES = "",
-    UPDATE_PERCENTAGE = 85,
-    SET_COMPLETED_TO_REWATCHING_ON_FIRST_EPISODE = false,
-    UPDATE_PROGRESS_WHEN_REWATCHING = true,
-    SET_TO_COMPLETED_AFTER_LAST_EPISODE_CURRENT = true,
-    SET_TO_COMPLETED_AFTER_LAST_EPISODE_REWATCHING = true
-}
+-- Initialize options from default_options
+local options = {}
+for _, option in ipairs(default_options) do
+    options[option.key] = option.value
+end
 if conf_path then
+    -- Read the current config file content
+    local current_config = ""
+    local config_file = io.open(conf_path, "r")
+    if config_file then
+        current_config = config_file:read("*all")
+        config_file:close()
+    end
+    
+    -- This will override the defaults with values from the config file
     mpoptions.read_options(options, "anilistUpdater")
+    
+    -- Check for missing options and append them
+    local missing_options = {}
+    for _, option in ipairs(default_options) do
+        if not current_config:find(option.key .. "=") then
+            table.insert(missing_options, option.key .. "=" .. option.config_value)
+        end
+    end
+    
+    -- Append missing options
+    if #missing_options > 0 then
+        local append_file = io.open(conf_path, "a")
+        if append_file then
+            for _, option in ipairs(missing_options) do
+                append_file:write(option .. "\n")
+            end
+            append_file:close()
+        end
+    end
 end
 
-local function normalize_path(p)
-    p = p:gsub("\\", "/")
-    if p:sub(-1) == "/" then
-        p = p:sub(1, -2)
-    end
-    return p
-end
-
--- Parse DIRECTORIES if it's a string (comma or semicolon separated)
-if type(options.DIRECTORIES) == "string" and options.DIRECTORIES ~= "" then
-    local dirs = {}
-    for dir in string.gmatch(options.DIRECTORIES, "([^,;]+)") do
-        local trimmed = (dir:gsub("^%s*(.-)%s*$", "%1"):gsub('[\'"]', '')) -- trim
-        table.insert(dirs, normalize_path(trimmed))
-    end
-    options.DIRECTORIES = dirs
-elseif type(options.DIRECTORIES) == "string" then
-    options.DIRECTORIES = {}
-end
-
-if type(options.EXCLUDED_DIRECTORIES) == "string" and options.EXCLUDED_DIRECTORIES ~= "" then
-    local dirs = {}
-    for dir in string.gmatch(options.EXCLUDED_DIRECTORIES, "([^,;]+)") do
-        local trimmed = (dir:gsub("^%s*(.-)%s*$", "%1"):gsub('[\'"]', '')) -- trim
-        table.insert(dirs, normalize_path(trimmed))
-    end
-    options.EXCLUDED_DIRECTORIES = dirs
-elseif type(options.EXCLUDED_DIRECTORIES) == "string" then
-    options.EXCLUDED_DIRECTORIES = {}
-end
+-- Parse DIRECTORIES and EXCLUDED_DIRECTORIES using helper function
+options.DIRECTORIES = parse_directory_string(options.DIRECTORIES)
+options.EXCLUDED_DIRECTORIES = parse_directory_string(options.EXCLUDED_DIRECTORIES)
 
 -- When calling Python, pass only the options relevant to it
 local python_options = {
     SET_COMPLETED_TO_REWATCHING_ON_FIRST_EPISODE = options.SET_COMPLETED_TO_REWATCHING_ON_FIRST_EPISODE,
     UPDATE_PROGRESS_WHEN_REWATCHING = options.UPDATE_PROGRESS_WHEN_REWATCHING,
     SET_TO_COMPLETED_AFTER_LAST_EPISODE_CURRENT = options.SET_TO_COMPLETED_AFTER_LAST_EPISODE_CURRENT,
-    SET_TO_COMPLETED_AFTER_LAST_EPISODE_REWATCHING = options.SET_TO_COMPLETED_AFTER_LAST_EPISODE_REWATCHING
+    SET_TO_COMPLETED_AFTER_LAST_EPISODE_REWATCHING = options.SET_TO_COMPLETED_AFTER_LAST_EPISODE_REWATCHING,
+    ADD_ENTRY_IF_MISSING = options.ADD_ENTRY_IF_MISSING
 }
 local python_options_json = utils.format_json(python_options)
 
@@ -285,12 +338,12 @@ mp.register_event("file-loaded", function()
     end
 end)
 
--- Keybinds, modify as you please
-mp.add_key_binding('ctrl+a', 'update_anilist', function()
+-- Keybinds (configurable via anilistUpdater.conf)
+mp.add_key_binding(options.KEYBIND_UPDATE_ANILIST, 'update_anilist', function()
     update_anilist("update")
 end)
 
-mp.add_key_binding('ctrl+b', 'launch_anilist', function()
+mp.add_key_binding(options.KEYBIND_LAUNCH_ANILIST, 'launch_anilist', function()
     update_anilist("launch")
 end)
 
@@ -332,4 +385,4 @@ function open_folder()
     })
 end
 
-mp.add_key_binding('ctrl+d', 'open_folder', open_folder)
+mp.add_key_binding(options.KEYBIND_OPEN_FOLDER, 'open_folder', open_folder)
