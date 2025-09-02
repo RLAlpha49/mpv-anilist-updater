@@ -42,6 +42,7 @@ Legend: ☐ not completed | ☑ completed
 	- ☐ Reattach observer on each file-loaded
 	- ☐ mpv script-message interface (e.g. `script-message anilist-update-now`)
 	- ☐ Wire manual trigger path
+	- ☐ Interactive interface for selecting anime to add
 
 5. Batch / Library CLI Mode
 	- PR Title: CLI batch dry-run & unmapped report
