@@ -2,16 +2,29 @@
 
 A script for MPV that automatically updates your AniList based on the file you just watched.
 
+## Table of Contents
+
+- [Important Notes](#important-notes)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Configuration](#configuration-anilistupdaterconf)
+- [Usage](#usage)
+- [How It Works](#how-it-works)
+- [Credits](#credits)
+
+## Important Notes
+
 > [!IMPORTANT]
-> By default, the anime must be set to "watching", "planning" or "rewatching" to update progress. This is done in order to prevent updating the wrong show.<br>
-> **Recommendation:** Check out the configuration options in your `anilistUpdater.conf` file to customize the script to your needs. See the [Configuration](#configuration-anilistupdaterconf) section for details.<br>
+> By default, the anime must be set to "watching", "planning" or "rewatching" to update progress. This is done in order to prevent updating the wrong show. You can change this behavior in the config file (see `ADD_ENTRY_IF_MISSING` option).
+>
+> **Recommendation:** Check out the configuration options in your `anilistUpdater.conf` file to customize the script to your needs. See the [Configuration](#configuration-anilistupdaterconf) section for details.
 
 > [!TIP]
-> In order for the script to work properly, make sure your files are named correctly:<br>
+> In order for the script to work properly, make sure your files are named correctly:
 >
-> - Either the file or folder its in must have the anime title in it<br>
-> - The file must have the episode number in it (absolute numbering should work)<br>
-> - In case of remakes, specify the year of the remake to ensure it updates the proper one<br>
+> - Either the file or folder its in must have the anime title in it
+> - The file must have the episode number in it (absolute numbering should work)
+> - In case of remakes, specify the year of the remake to ensure it updates the proper one
 >
 > To avoid the script running and making useless API calls, you can set one or more directories in the config file. See the [Configuration](#configuration-anilistupdaterconf) section below.
 
@@ -19,7 +32,7 @@ For any issues, you can either open an issue on here, or message me on discord (
 
 ## Requirements
 
-You will need Python 3 installed, as well as the libraries `guessit` and `requests`:
+You will need Python 3.7 or later installed, as well as the libraries `guessit` and `requests`:
 
 ```bash
 pip install guessit requests
@@ -27,11 +40,39 @@ pip install guessit requests
 
 ## Installation
 
-Simply download the `anilistUpdater` folder and put it in your mpv scripts folder, or download the contents and make the folder yourself.
+### Method 1: Git Clone (Recommended)
 
-You **WILL** need an AniList access token for it to work:
+Clone the repository directly to your MPV scripts folder for easy installation and updates:
 
-1. Visit `https://anilist.co/api/v2/oauth/authorize?client_id=20740&response_type=token`
+```bash
+# Navigate to your MPV scripts directory
+# Windows: %APPDATA%/mpv/scripts/
+# Linux/macOS: ~/.config/mpv/scripts/
+cd /path/to/your/mpv/scripts/
+
+# Clone the repository
+git clone https://github.com/AzuredBlue/mpv-anilist-updater.git
+```
+
+**To update:** Simply run `git pull` in the script directory.
+
+```bash
+cd /path/to/your/mpv/scripts/mpv-anilist-updater
+git pull
+```
+
+### Method 2: Manual Download
+
+Download the repository as a ZIP file and extract it to your MPV scripts folder:
+
+1. Download the ZIP from [GitHub](https://github.com/AzuredBlue/mpv-anilist-updater)
+2. Extract the folder to your MPV scripts directory
+
+### Setting Up AniList Token
+
+You **MUST** set up an AniList access token for the script to work:
+
+1. Visit: `https://anilist.co/api/v2/oauth/authorize?client_id=20740&response_type=token`
 2. Authorize the app
 3. Copy the token
 4. Create an `anilistToken.txt` file in the `anilistUpdater` folder (if not already there) and paste the token there.
