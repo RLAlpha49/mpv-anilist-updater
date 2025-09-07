@@ -10,6 +10,7 @@ A script for MPV that automatically updates your AniList based on the file you j
 - [Configuration](#configuration-anilistupdaterconf)
 - [Usage](#usage)
 - [How It Works](#how-it-works)
+- [FAQ (Probably)](#faq-probably)
 - [Credits](#credits)
 
 ## Important Notes
@@ -75,7 +76,7 @@ You **MUST** set up an AniList access token for the script to work:
 1. Visit: `https://anilist.co/api/v2/oauth/authorize?client_id=20740&response_type=token`
 2. Authorize the app
 3. Copy the token
-4. Create an `anilistToken.txt` file in the `anilistUpdater` folder (if not already there) and paste the token there.
+4. Create an `anilistToken.txt` file in the `mpv-anilist-updater` folder (if not already there) and paste the token there.
 
 This token is what allows the script to update the anime episode count and make api requests, it is not used for anything else.
 
