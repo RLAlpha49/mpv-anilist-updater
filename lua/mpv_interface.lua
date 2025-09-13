@@ -4,6 +4,8 @@ local utils = require 'mp.utils'
 local config = require 'lua.config'
 local path_utils = require 'lua.path_utils'
 
+local M = {}
+
 local options = {}
 local python_options = {}
 local python_options_json = ""
@@ -64,7 +66,7 @@ function on_pause_change(name, value)
     end
 end
 
-function initialize(script_dir)
+function M.initialize(script_dir)
     -- Load configuration
     options = config.load_config(script_dir)
     
@@ -143,3 +145,5 @@ function initialize(script_dir)
 
     mp.add_key_binding("ctrl+d", 'open_folder', path_utils.open_folder)
 end
+
+return M

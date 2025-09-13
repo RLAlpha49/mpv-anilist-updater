@@ -15,4 +15,4 @@ local mpv_interface = require 'lua.mpv_interface'
 local script_dir = (debug.getinfo(1).source:match("@?(.*/)") or "./")
 
 -- Initialize the MPV interface
-initialize(script_dir)
+mpv_interface.initialize(script_dir)

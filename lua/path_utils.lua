@@ -2,8 +2,10 @@
 
 local utils = require 'mp.utils'
 
+local M = {}
+
 -- Helper function to normalize path separators
-function normalize_path(p)
+function M.normalize_path(p)
     p = p:gsub("\\", "/")
     if p:sub(-1) == "/" then
         p = p:sub(1, -2)
@@ -11,8 +13,8 @@ function normalize_path(p)
     return p
 end
 
-function path_starts_with_any(path, directories)
-    local norm_path = normalize_path(path)
+function M.path_starts_with_any(path, directories)
+    local norm_path = M.normalize_path(path)
     for _, dir in ipairs(directories) do
         if norm_path:sub(1, #dir) == dir then
             return true
@@ -22,7 +24,7 @@ function path_starts_with_any(path, directories)
 end
 
 -- Helper function to detect ani-cli compatibility
-function is_ani_cli_compatible()
+function M.is_ani_cli_compatible()
     local directory = mp.get_property("working-directory") or ""
     local file_path = mp.get_property("path") or ""
     local full_path = utils.join_path(directory, file_path)
@@ -31,7 +33,7 @@ function is_ani_cli_compatible()
     return full_path:match("https?://") ~= nil
 end
 
-function get_path()
+function M.get_path()
     local directory = mp.get_property("working-directory")
     -- It seems like in Linux working-directory sometimes returns it without a "/" at the end
     directory = (directory:sub(-1) == '/' or directory:sub(-1) == '\\') and directory or directory .. '/'
@@ -54,7 +56,7 @@ function get_path()
     return path
 end
 
-function get_python_command()
+function M.get_python_command()
     local os_name = package.config:sub(1, 1)
     if os_name == '\\' then
         -- Windows
@@ -66,7 +68,7 @@ function get_python_command()
 end
 
 -- Open the folder that the video is in
-function open_folder()
+function M.open_folder()
     local path = mp.get_property("path")
     local directory
 
@@ -102,3 +104,5 @@ function open_folder()
         detach = true
     })
 end
+
+return M
