@@ -10,6 +10,7 @@ local options = {}
 local python_options = {}
 local python_options_json = ""
 local python_command = ""
+local script_directory = ""
 local isPaused = false
 local triggered = false
 local UPDATE_INTERVAL = 0.5
@@ -28,7 +29,7 @@ function callback(success, result, error)
             end
         end
     end
-    
+
     if success and result and result.status == 0 then
         if #messages == 0 then
             table.insert(messages, "Updated anime correctly.")
@@ -43,13 +44,15 @@ function update_anilist(action)
     if action == "launch" then
         mp.osd_message("Launching AniList", 2)
     end
-    local script_dir = debug.getinfo(1).source:match("@?(.*/)")
 
     local path = path_utils.get_path()
 
+    local python_script_path = utils.join_path(script_directory, "python")
+    python_script_path = utils.join_path(python_script_path, "main.py")
+
     local table = {}
     table.name = "subprocess"
-    table.args = {python_command, script_dir .. "../python/main.py", path, action, python_options_json}
+    table.args = {python_command, python_script_path, path, action, python_options_json}
     table.capture_stdout = true
     local cmd = mp.command_native_async(table, callback)
 end
@@ -67,9 +70,11 @@ function on_pause_change(name, value)
 end
 
 function M.initialize(script_dir)
+    script_directory = script_dir
+
     -- Load configuration
     options = config.load_config(script_dir)
-    
+
     -- When calling Python, pass only the options relevant to it
     python_options = {
         SET_COMPLETED_TO_REWATCHING_ON_FIRST_EPISODE = options.SET_COMPLETED_TO_REWATCHING_ON_FIRST_EPISODE,
@@ -79,15 +84,15 @@ function M.initialize(script_dir)
         ADD_ENTRY_IF_MISSING = options.ADD_ENTRY_IF_MISSING
     }
     python_options_json = utils.format_json(python_options)
-    
+
     python_command = path_utils.get_python_command()
-    
+
     -- Initialize timer once - we control it with stop/resume
     progress_timer = mp.add_periodic_timer(UPDATE_INTERVAL, function()
         if triggered then
             return
         end
-        
+
         local percent_pos = mp.get_property_number("percent-pos")
         if not percent_pos then
             return
@@ -121,7 +126,8 @@ function M.initialize(script_dir)
                 return
             else
                 -- If it starts with the directories, check if it starts with any of the excluded directories
-                if #options.EXCLUDED_DIRECTORIES > 0 and path_utils.path_starts_with_any(path, options.EXCLUDED_DIRECTORIES) then
+                if #options.EXCLUDED_DIRECTORIES > 0 and
+                    path_utils.path_starts_with_any(path, options.EXCLUDED_DIRECTORIES) then
                     mp.unobserve_property(on_pause_change)
                     return
                 end

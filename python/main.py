@@ -15,8 +15,15 @@ Parses anime filenames, finds AniList entries, and updates progress/status.
 
 import json
 import sys
+from pathlib import Path
 
-from .updater import AniListUpdater
+# Add the parent directory to sys.path to enable absolute imports from the python package
+script_dir = Path(__file__).resolve().parent
+parent_dir = script_dir.parent
+if str(parent_dir) not in sys.path:
+    sys.path.insert(0, str(parent_dir))
+
+from python.updater import AniListUpdater  # noqa: E402
 
 
 def main() -> None:

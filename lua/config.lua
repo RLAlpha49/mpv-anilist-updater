@@ -10,8 +10,8 @@ local M = {}
 
 -- Helper function to get MPV config directory
 local function get_mpv_config_dir()
-    return os.getenv("APPDATA") and utils.join_path(os.getenv("APPDATA"), "mpv") or 
-           os.getenv("HOME") and utils.join_path(utils.join_path(os.getenv("HOME"), ".config"), "mpv") or nil
+    return os.getenv("APPDATA") and utils.join_path(os.getenv("APPDATA"), "mpv") or os.getenv("HOME") and
+               utils.join_path(utils.join_path(os.getenv("HOME"), ".config"), "mpv") or nil
 end
 
 -- Helper function to parse directory strings (comma or semicolon separated)
@@ -59,7 +59,7 @@ ADD_ENTRY_IF_MISSING=no
 
 function M.load_config(script_dir)
     local conf_name = "anilistUpdater.conf"
-    
+
     -- Try script-opts directory (sibling to scripts)
     local script_opts_dir = script_dir:match("^(.-)[/\\]scripts[/\\]")
 
