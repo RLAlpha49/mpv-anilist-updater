@@ -66,7 +66,7 @@ git pull
 
 Download the repository as a ZIP file and extract it to your MPV scripts folder:
 
-1. Download the ZIP from [GitHub](https://github.com/AzuredBlue/mpv-anilist-updater)
+1. Download the latest [ZIP](https://github.com/AzuredBlue/mpv-anilist-updater/archive/refs/heads/main.zip)
 2. Extract the folder to your MPV scripts directory
 
 ### Setting Up AniList Token
