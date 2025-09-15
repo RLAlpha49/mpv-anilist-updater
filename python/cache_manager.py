@@ -79,7 +79,7 @@ class CacheManager:
             now = time.time()
             changed = False
             # Purge expired
-            for k, v in list(cache.items()):
+            for k, v in cache.items():
                 if v.get("ttl", 0) < now:
                     cache.pop(k, None)
                     changed = True

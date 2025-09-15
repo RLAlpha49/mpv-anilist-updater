@@ -129,7 +129,6 @@ class AniListUpdater:
         if result and result.current_progress is not None:
             # Update cache with latest data
             self.cache_manager.cache_to_file(filename, file_info.name, file_info.episode, result)
-        return
 
     def filter_valid_seasons(self, seasons: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
@@ -324,7 +323,7 @@ class AniListUpdater:
             query = AniListQueries.SAVE_MEDIA_LIST_ENTRY
 
             variables = {"mediaId": anime_id, "progress": 0, "status": "REPEATING"}
-            response = self.api_client.make_api_request(query, variables, self.access_token)
+            self.api_client.make_api_request(query, variables, self.access_token)
 
             # Step 2: Set progress to 1
             variables = {"mediaId": anime_id, "progress": 1}
@@ -336,7 +335,6 @@ class AniListUpdater:
                 print(f"Episode count updated successfully! New progress: {updated_progress}")
 
                 return AnimeInfo(anime_id, anime_name, updated_progress, total_episodes, 1, "REPEATING")
-            print("Failed to update episode count.")
             raise Exception("Failed to update episode count.")
 
         # Handle updating progress for rewatching
@@ -376,7 +374,6 @@ class AniListUpdater:
             updated_status = response["data"]["SaveMediaListEntry"]["status"]
 
             return AnimeInfo(anime_id, anime_name, updated_progress, total_episodes, file_progress, updated_status)
-        print("Failed to update episode count.")
         raise Exception("Failed to update episode count.")
 
     def add_anime_to_list(
