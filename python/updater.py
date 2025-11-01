@@ -188,6 +188,7 @@ class AniListUpdater:
 
         if not response or "data" not in response:
             osd_message("Error: Unable to connect to AniList API.")
+            print("Error: Unable to connect to AniList API.", file=sys.stderr)
             return AnimeInfo(None, None, None, None, None, None)
 
         seasons = response["data"]["Page"]["media"]
@@ -407,8 +408,10 @@ class AniListUpdater:
 
             if response and "data" in response and response["data"]["SaveMediaListEntry"]:
                 return True
-            print(f'Failed to add "{anime_name}" to your list.')
+            osd_message(f'Failed to add "{anime_name}" to your list.')
+            print(f'Failed to add "{anime_name}" to your list.', file=sys.stderr)
             return False
         except Exception as e:
-            print(f'Error adding "{anime_name}" to list: {e}')
+            print(f'Error adding "{anime_name}" to list: {e}', file=sys.stderr)
+            osd_message("Error: Failed to add anime to list.")
             return False
