@@ -16,7 +16,9 @@ end
 function M.path_starts_with_any(path, directories)
     local norm_path = M.normalize_path(path)
     for _, dir in ipairs(directories) do
-        if norm_path:sub(1, #dir) == dir then
+        local norm_dir = M.normalize_path(dir)
+        -- Check if path equals dir or starts with dir followed by a separator
+        if norm_path == norm_dir or norm_path:sub(1, #norm_dir + 1) == norm_dir .. "/" then
             return true
         end
     end
