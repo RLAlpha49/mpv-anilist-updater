@@ -77,12 +77,15 @@ class CacheManager:
         try:
             cache = self.load_cache()
             now = time.time()
-            changed = False
-            # Purge expired
+            keys_to_delete = []
             for k, v in cache.items():
                 if v.get("ttl", 0) < now:
-                    cache.pop(k, None)
-                    changed = True
+                    keys_to_delete.append(k)
+
+            changed = len(keys_to_delete) > 0
+            for k in keys_to_delete:
+                cache.pop(k, None)
+
             if changed:
                 self.save_cache(cache)
 
