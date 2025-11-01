@@ -153,6 +153,9 @@ function M.initialize(script_dir)
             end
         end
 
+        -- Re-observe pause property for valid files
+        mp.observe_property(on_pause_change)
+
         -- Start timer for this file
         if not isPaused then
             progress_timer:resume()
