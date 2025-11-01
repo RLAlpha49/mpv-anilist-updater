@@ -21,7 +21,11 @@ local function parse_directory_string(dir_string)
         local dirs = {}
         for dir in string.gmatch(dir_string, "([^,;]+)") do
             local trimmed = (dir:gsub("^%s*(.-)%s*$", "%1"):gsub('[\'"]', '')) -- trim
-            table.insert(dirs, path_utils.normalize_path(trimmed))
+            local normalized = path_utils.normalize_path(trimmed)
+            if normalized ~= "" then
+                table.insert(dirs, normalized)
+                mp.msg.debug("Parsed directory: " .. normalized)
+            end
         end
         return dirs
     else
