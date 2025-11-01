@@ -186,6 +186,7 @@ class AniListUpdater:
         response = self.api_client.make_api_request(query, variables, self.access_token)
 
         if not response or "data" not in response:
+            osd_message("Error: Unable to connect to AniList API.")
             return AnimeInfo(None, None, None, None, None, None)
 
         seasons = response["data"]["Page"]["media"]
@@ -335,6 +336,7 @@ class AniListUpdater:
                 print(f"Episode count updated successfully! New progress: {updated_progress}")
 
                 return AnimeInfo(anime_id, anime_name, updated_progress, total_episodes, 1, "REPEATING")
+            osd_message("Error: Failed to update anime.")
             raise Exception("Failed to update episode count.")
 
         # Handle updating progress for rewatching
@@ -374,6 +376,7 @@ class AniListUpdater:
             updated_status = response["data"]["SaveMediaListEntry"]["status"]
 
             return AnimeInfo(anime_id, anime_name, updated_progress, total_episodes, file_progress, updated_status)
+        osd_message("Error: Failed to update anime.")
         raise Exception("Failed to update episode count.")
 
     def add_anime_to_list(
