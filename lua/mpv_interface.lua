@@ -37,15 +37,12 @@ function callback(success, result, error)
         end
     end
 
-    -- Display OSD message(s)
+    -- Display OSD message(s) if any were explicitly sent by Python
     if #messages > 0 then
         mp.osd_message(table.concat(messages, "\n"), 5)
     elseif result and result.status ~= 0 then
         -- If there was an error but no OSD message, show generic error
         mp.osd_message("Error: Update failed. Check console for details.", 3)
-    elseif success and result and result.status == 0 then
-        -- Success with no specific message
-        mp.osd_message("Updated anime correctly.", 5)
     end
 end
 
