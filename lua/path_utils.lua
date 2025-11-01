@@ -47,8 +47,10 @@ function M.get_path()
         if media_title and media_title ~= "" then
             return media_title
         end
+        return path
     end
 
+    -- Special case for file.mp4
     if path:match("([^/\\]+)$"):lower() == "file.mp4" then
         path = mp.get_property("media-title")
     end
