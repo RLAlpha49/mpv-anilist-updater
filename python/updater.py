@@ -42,6 +42,11 @@ class AniListUpdater:
         self.options: dict[str, Any] = options
         self.ACTION: str = action
 
+        # Check if token is missing or empty
+        if not self.access_token:
+            osd_message(f"AniList token is missing. Place your token in: {self.TOKEN_PATH}")
+            sys.exit(1)
+
     @staticmethod
     def season_order(season: Optional[str]) -> int:
         """
