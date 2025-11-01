@@ -187,7 +187,7 @@ class AniListUpdater:
         response = self.api_client.make_api_request(query, variables, self.access_token)
 
         if not response or "data" not in response:
-            osd_message("Error: Unable to connect to AniList API.")
+            osd_message("AniList API error; check console for details")
             print("Error: Unable to connect to AniList API.", file=sys.stderr)
             return AnimeInfo(None, None, None, None, None, None)
 
