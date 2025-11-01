@@ -1,6 +1,7 @@
 """Main AniListUpdater class."""
 
 import os
+import sys
 import webbrowser
 from typing import Any, Optional
 
@@ -204,7 +205,11 @@ class AniListUpdater:
 
                 seasons = response["data"]["Page"]["media"]
                 if not seasons:
-                    raise Exception(f"Couldn't find an anime from this title! ({name})")
+                    error_msg = f"Couldn't find an anime from this title '{name}'" + (
+                        f" (year {year})" if year else ""
+                    )
+                    print(error_msg, file=sys.stderr)
+                    raise Exception(error_msg)
 
                 # If this is an ADD_ENTRY_IF_MISSING request, prepare anime data for potential addition
                 if self.ACTION != "launch" and self.options.get("ADD_ENTRY_IF_MISSING", False):
