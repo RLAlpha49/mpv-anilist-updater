@@ -38,9 +38,27 @@ local function create_directory_if_needed(dir_path)
             return true
         end
         
-        -- Directory doesn't exist, try to create it
-        local ok = os.execute('mkdir "' .. dir_path .. '" 2>nul') or os.execute('mkdir -p "' .. dir_path .. '" 2>/dev/null')
-        if ok == 0 or ok == true then
+        -- Directory doesn't exist, try to create it using mp.command_native
+        local os_sep = package.config:sub(1, 1)
+        local args
+        
+        if os_sep == '\\' then
+            -- Windows: use mkdir (no -p flag)
+            args = {"mkdir", dir_path}
+        else
+            -- Unix-like: use mkdir -p
+            args = {"mkdir", "-p", dir_path}
+        end
+        
+        local status = mp.command_native({
+            name = "subprocess",
+            args = args,
+            capture_stdout = false,
+            capture_stderr = false
+        })
+        
+        -- Check if creation was successful (status 0 or true)
+        if status == 0 or status == true then
             return true
         end
         
