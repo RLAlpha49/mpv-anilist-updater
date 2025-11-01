@@ -209,6 +209,7 @@ class AniListUpdater:
                     error_msg = f"Couldn't find an anime from this title '{name}'" + (
                         f" (year {year})" if year else ""
                     )
+                    osd_message(error_msg)
                     print(error_msg, file=sys.stderr)
                     raise Exception(error_msg)
 
@@ -222,7 +223,9 @@ class AniListUpdater:
                     # The addition will happen in update_episode_count when update is actually triggered
                     return AnimeInfo(anime_id, anime_title, None, anime_to_add["episodes"], file_progress, None)
             else:
-                raise Exception(f"Couldn't find an anime from this title! ({name}). Is it in your list?")
+                error_msg = f"Couldn't find an anime from this title! ({name}). Is it in your list?"
+                osd_message(error_msg)
+                raise Exception(error_msg)
 
         # This is the first element, which is the same as Media(search: $search)
         entry = seasons[0]["mediaListEntry"]
@@ -246,6 +249,11 @@ class AniListUpdater:
             found_season = next(
                 (season for season in seasons if season["id"] == season_episode_info.season_id), None
             )
+            if not found_season:
+                error_msg = f"Could not find corresponding season for absolute episode {file_progress}"
+                osd_message(error_msg)
+                print(error_msg, file=sys.stderr)
+                raise Exception(error_msg)
             found_entry = (
                 found_season["mediaListEntry"] if found_season and found_season["mediaListEntry"] else None
             )
@@ -279,12 +287,16 @@ class AniListUpdater:
             Exception: If the update fails.
         """
         if result is None:
-            raise Exception("Parameter in update_episode_count is null.")
+            error_msg = "Parameter in update_episode_count is null."
+            osd_message(error_msg)
+            raise Exception(error_msg)
 
         anime_id, anime_name, current_progress, total_episodes, file_progress, current_status = result
 
         if anime_id is None:
-            raise Exception("Couldn't find that anime! Make sure it is on your list and the title is correct.")
+            error_msg = "Couldn't find that anime! Make sure it is on your list and the title is correct."
+            osd_message(error_msg)
+            raise Exception(error_msg)
 
         # Only launch anilist
         if self.ACTION == "launch":
@@ -310,8 +322,12 @@ class AniListUpdater:
                     return AnimeInfo(
                         anime_id, anime_name, file_progress, total_episodes, file_progress, initial_status
                     )
-                raise Exception(f"Failed to add '{anime_name}' to your list.")
-            raise Exception("Failed to get current episode count. Is it on your list?")
+                error_msg = f"Failed to add '{anime_name}' to your list."
+                osd_message(error_msg)
+                raise Exception(error_msg)
+            error_msg = "Failed to get current episode count. Is it on your list?"
+            osd_message(error_msg)
+            raise Exception(error_msg)
 
         # Handle completed -> rewatching on first episode
         if (
@@ -342,8 +358,9 @@ class AniListUpdater:
                 print(f"Episode count updated successfully! New progress: {updated_progress}")
 
                 return AnimeInfo(anime_id, anime_name, updated_progress, total_episodes, 1, "REPEATING")
-            osd_message("Error: Failed to update anime.")
-            raise Exception("Failed to update episode count.")
+            error_msg = "Failed to update anime to REPEATING."
+            osd_message(error_msg)
+            raise Exception(error_msg)
 
         # Handle updating progress for rewatching
         if current_status == "REPEATING" and self.options["UPDATE_PROGRESS_WHEN_REWATCHING"]:
@@ -354,12 +371,16 @@ class AniListUpdater:
         elif current_status in {"CURRENT", "PLANNING"}:
             # If its lower than the current progress, dont update.
             if file_progress and current_progress is not None and file_progress <= current_progress:
-                raise Exception(f"Episode was not new. Not updating ({file_progress} <= {current_progress})")
+                error_msg = f"Episode was not new. Not updating ({file_progress} <= {current_progress})"
+                osd_message(error_msg)
+                raise Exception(error_msg)
 
             status_to_set = "CURRENT"
 
         else:
-            raise Exception(f"Anime is not in a modifiable state (status: {current_status}). Not updating.")
+            error_msg = f"Anime is not in a modifiable state (status: {current_status}). Not updating."
+            osd_message(error_msg)
+            raise Exception(error_msg)
 
         # Set to COMPLETED if last episode and the option is enabled
         if file_progress == total_episodes and (
@@ -382,8 +403,9 @@ class AniListUpdater:
             updated_status = response["data"]["SaveMediaListEntry"]["status"]
 
             return AnimeInfo(anime_id, anime_name, updated_progress, total_episodes, file_progress, updated_status)
-        osd_message("Error: Failed to update anime.")
-        raise Exception("Failed to update episode count.")
+        error_msg = "Failed to update anime."
+        osd_message(error_msg)
+        raise Exception(error_msg)
 
     def add_anime_to_list(
         self, anime_id: int, anime_name: str, initial_status: str = "PLANNING", initial_progress: int = 0
