@@ -61,7 +61,7 @@ function M.get_path()
         path = mp.get_property("media-title")
     end
 
-    return path
+    return M.normalize_path(path)
 end
 
 function M.get_python_command()
