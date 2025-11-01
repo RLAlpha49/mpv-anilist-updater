@@ -37,6 +37,21 @@ function M.normalize_path(p)
     return p
 end
 
+-- Helper function to create directory if it doesn't exist
+local function create_directory_if_needed(dir_path)
+    if dir_path and dir_path ~= "" then
+        local f = io.open(dir_path, "r")
+        if f then
+            f:close()
+        else
+            -- Try to create the directory
+            local ok = os.execute('mkdir "' .. dir_path .. '" 2>nul') or os.execute('mkdir -p "' .. dir_path .. '" 2>/dev/null')
+            return ok ~= nil
+        end
+    end
+    return false
+end
+
 -- Default config content
 local default_conf = [[# anilistUpdater Configuration
 # For detailed explanations of all available options, see:
@@ -99,6 +114,12 @@ function M.load_config(script_dir)
     if not conf_path then
         for _, path in ipairs(conf_paths) do
             if path then
+                -- Ensure parent directory exists
+                local parent_dir = path:match("^(.-)[/\\][^/\\]*$")
+                if parent_dir then
+                    create_directory_if_needed(parent_dir)
+                end
+
                 local f = io.open(path, "w")
                 if f then
                     f:write(default_conf)
