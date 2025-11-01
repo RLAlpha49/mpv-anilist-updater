@@ -30,12 +30,24 @@ function callback(success, result, error)
         end
     end
 
+    -- Handle stderr output
+    local has_stderr = false
+    if result and result.stderr then
+        for line in result.stderr:gmatch("[^\r\n]+") do
+            print(line)
+            has_stderr = true
+        end
+    end
+
     if success and result and result.status == 0 then
         if #messages == 0 then
             table.insert(messages, "Updated anime correctly.")
         elseif #messages > 0 then
             mp.osd_message(table.concat(messages, "\n"), 5)
         end
+    elseif has_stderr and #messages == 0 then
+        -- If there was an error and no OSD message was already set, show a generic error
+        mp.osd_message("Error: Check console for details", 3)
     end
 end
 
@@ -54,6 +66,7 @@ function update_anilist(action)
     table.name = "subprocess"
     table.args = {python_command, python_script_path, path, action, python_options_json}
     table.capture_stdout = true
+    table.capture_stderr = true
     local cmd = mp.command_native_async(table, callback)
 end
 
