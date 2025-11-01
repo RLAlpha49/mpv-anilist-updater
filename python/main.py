@@ -39,7 +39,7 @@ def main() -> None:
         options = {
             "SET_COMPLETED_TO_REWATCHING_ON_FIRST_EPISODE": False,
             "UPDATE_PROGRESS_WHEN_REWATCHING": True,
-            "SET_TO_COMPLETED_AFTER_LAST_EPISODE_CURRENT": False,
+            "SET_TO_COMPLETED_AFTER_LAST_EPISODE_CURRENT": True,
             "SET_TO_COMPLETED_AFTER_LAST_EPISODE_REWATCHING": True,
             "ADD_ENTRY_IF_MISSING": False,
         }
