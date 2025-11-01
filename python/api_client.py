@@ -1,5 +1,6 @@
 """API communication logic for AniList GraphQL API."""
 
+import sys
 from typing import Any, Optional
 
 import requests
@@ -29,12 +30,17 @@ class APIClient:
         if access_token:
             headers["Authorization"] = f"Bearer {access_token}"
 
-        response = requests.post(
-            self.ANILIST_API_URL, json={"query": query, "variables": variables}, headers=headers, timeout=10
-        )
-        if response.status_code == 200:
-            return response.json()
-        print(
-            f"API request failed: {response.status_code} - {response.text}\nQuery: {query}\nVariables: {variables}"
-        )
-        return None
+        try:
+            response = requests.post(
+                self.ANILIST_API_URL, json={"query": query, "variables": variables}, headers=headers, timeout=10
+            )
+            if response.status_code == 200:
+                return response.json()
+            print(
+                f"API request failed: {response.status_code} - {response.text}\nQuery: {query}\nVariables: {variables}",
+                file=sys.stderr,
+            )
+            return None
+        except requests.exceptions.RequestException as e:
+            print(f"Network error connecting to AniList API: {e}", file=sys.stderr)
+            return None
