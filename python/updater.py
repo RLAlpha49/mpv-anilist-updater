@@ -1,8 +1,8 @@
 """Main AniListUpdater class."""
 
-import os
 import sys
 import webbrowser
+from pathlib import Path
 from typing import Any, Optional
 
 from .api_client import APIClient
@@ -21,8 +21,9 @@ def osd_message(msg: str) -> None:
 class AniListUpdater:
     """AniList authentication, file parsing, API requests, and progress updates."""
 
-    TOKEN_PATH: str = os.path.join(os.path.dirname(__file__), "..", "anilistToken.txt")
-    CACHE_PATH: str = os.path.join(os.path.dirname(__file__), "..", "cache.json")
+    # Paths resolved to absolute using __file__, independent of working directory or layout assumptions
+    TOKEN_PATH: str = str(Path(__file__).resolve().parent.parent / "anilistToken.txt")
+    CACHE_PATH: str = str(Path(__file__).resolve().parent.parent / "cache.json")
 
     def __init__(self, options: dict[str, Any], action: str) -> None:
         """
