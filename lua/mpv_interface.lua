@@ -32,10 +32,15 @@ function callback(success, result, error)
 
     -- Handle stderr output
     local has_stderr = false
+    local first_stderr_line = nil
     if result and result.stderr then
         for line in result.stderr:gmatch("[^\r\n]+") do
             print(line)
             has_stderr = true
+            -- Capture the first non-empty line for OSD
+            if not first_stderr_line and line:match("%S") then
+                first_stderr_line = line:sub(1, 120):gsub("\n", " ")
+            end
         end
     end
 
@@ -46,8 +51,9 @@ function callback(success, result, error)
             mp.osd_message(table.concat(messages, "\n"), 5)
         end
     elseif has_stderr and #messages == 0 then
-        -- If there was an error and no OSD message was already set, show a generic error
-        mp.osd_message("Error: Check console for details", 3)
+        -- If there was an error and no OSD message was already set, show the first stderr line or generic error
+        local error_msg = first_stderr_line and ("Error: " .. first_stderr_line) or "Error: Check console for details"
+        mp.osd_message(error_msg, 3)
     end
 end
 
