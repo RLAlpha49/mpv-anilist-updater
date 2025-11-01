@@ -50,15 +50,15 @@ local function create_directory_if_needed(dir_path)
             args = {"mkdir", "-p", dir_path}
         end
         
-        local status = mp.command_native({
+        local res = mp.command_native({
             name = "subprocess",
             args = args,
             capture_stdout = false,
             capture_stderr = false
         })
         
-        -- Check if creation was successful (status 0 or true)
-        if status == 0 or status == true then
+        -- Check if creation was successful
+        if res and (res.status == 0 or res == true) then
             return true
         end
         
