@@ -52,7 +52,7 @@ def main() -> None:
         updater.handle_filename(sys.argv[1])
 
     except Exception as e:
-        print(f"ERROR: {e}")
+        print(f"ERROR: {e}", file=sys.stderr)
         sys.exit(1)
 
 
