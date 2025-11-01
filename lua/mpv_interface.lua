@@ -17,7 +17,7 @@ local UPDATE_INTERVAL = 0.5
 local progress_timer = nil
 
 function callback(success, result, error)
-    -- Can send multiple OSD messages to display
+    -- Collect OSD messages from stdout
     local messages = {}
     if result and result.stdout then
         for line in result.stdout:gmatch("[^\r\n]+") do
@@ -30,30 +30,22 @@ function callback(success, result, error)
         end
     end
 
-    -- Handle stderr output
-    local has_stderr = false
-    local first_stderr_line = nil
+    -- Collect stderr for logging purposes
     if result and result.stderr then
         for line in result.stderr:gmatch("[^\r\n]+") do
             print(line)
-            has_stderr = true
-            -- Capture the first non-empty line for OSD
-            if not first_stderr_line and line:match("%S") then
-                first_stderr_line = line:sub(1, 120):gsub("\n", " ")
-            end
         end
     end
 
-    if success and result and result.status == 0 then
-        if #messages == 0 then
-            table.insert(messages, "Updated anime correctly.")
-        elseif #messages > 0 then
-            mp.osd_message(table.concat(messages, "\n"), 5)
-        end
-    elseif has_stderr and #messages == 0 then
-        -- If there was an error and no OSD message was already set, show the first stderr line or generic error
-        local error_msg = first_stderr_line and ("Error: " .. first_stderr_line) or "Error: Check console for details"
-        mp.osd_message(error_msg, 3)
+    -- Display OSD message(s)
+    if #messages > 0 then
+        mp.osd_message(table.concat(messages, "\n"), 5)
+    elseif result and result.status ~= 0 then
+        -- If there was an error but no OSD message, show generic error
+        mp.osd_message("Error: Update failed. Check console for details.", 3)
+    elseif success and result and result.status == 0 then
+        -- Success with no specific message
+        mp.osd_message("Updated anime correctly.", 5)
     end
 end
 
@@ -135,12 +127,15 @@ function M.initialize(script_dir)
     -- Reset triggered and start/stop timer based on file loading
     mp.register_event("file-loaded", function()
         triggered = false
-        progress_timer:stop()
+        -- Always stop timer first to ensure clean state
+        if progress_timer then
+            progress_timer:stop()
+        end
 
         if not path_utils.is_ani_cli_compatible() and #options.DIRECTORIES > 0 then
             local path = path_utils.get_path()
 
-            if not path_utils.path_starts_with_any(path, options.DIRECTORIES) then
+            if not path or not path_utils.path_starts_with_any(path, options.DIRECTORIES) then
                 mp.unobserve_property(on_pause_change)
                 return
             else
@@ -156,9 +151,17 @@ function M.initialize(script_dir)
         -- Re-observe pause property for valid files
         mp.observe_property("pause", "bool", on_pause_change)
 
-        -- Start timer for this file
+        -- Start timer for this file only if not paused
         if not isPaused then
             progress_timer:resume()
+        end
+    end)
+
+    -- Reset triggered and stop timer when file ends
+    mp.register_event("end-file", function()
+        triggered = false
+        if progress_timer then
+            progress_timer:stop()
         end
     end)
 
