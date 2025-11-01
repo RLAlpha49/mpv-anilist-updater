@@ -4,11 +4,15 @@ local utils = require 'mp.utils'
 
 local M = {}
 
--- Helper function to normalize path separators
+-- Helper function to normalize path separators and handle case-sensitivity
 function M.normalize_path(p)
     p = p:gsub("\\", "/")
     if p:sub(-1) == "/" then
         p = p:sub(1, -2)
+    end
+    -- Lowercase on Windows for case-insensitive comparison
+    if package.config:sub(1, 1) == '\\' then
+        p = p:lower()
     end
     return p
 end
@@ -87,6 +91,12 @@ function M.open_folder()
         directory = path:match("(.*)\\\\")
     else
         directory = mp.get_property("working-directory")
+    end
+
+    -- Validate directory is non-empty
+    if not directory or directory == "" then
+        mp.msg.warn("Could not determine directory path.")
+        return
     end
 
     -- Use the system command to open the folder in File Explorer
