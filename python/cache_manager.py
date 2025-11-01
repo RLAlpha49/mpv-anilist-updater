@@ -3,6 +3,7 @@
 import hashlib
 import json
 import os
+import platform
 import time
 from typing import Any, Optional
 
@@ -56,7 +57,10 @@ class CacheManager:
         Generate SHA256 hash of normalized path.
 
         Normalizes the path on all platforms to ensure consistent hashing,
-        especially on Windows where case sensitivity can vary.
+        mirroring lua/path_utils.normalize_path behavior:
+        - Convert backslashes to forward slashes
+        - Remove trailing slashes
+        - Lowercase on Windows for case-insensitive comparison
 
         Args:
             path (str): Path to hash.
@@ -64,8 +68,14 @@ class CacheManager:
         Returns:
             str: Hashed path.
         """
-        normalized_path = os.path.normcase(os.path.normpath(path))
-        normalized_path = normalized_path.replace(os.sep, "/")
+        # Normalize path: backslashes to forward slashes, remove trailing slash
+        normalized_path = path.replace("\\", "/")
+        normalized_path = normalized_path.removesuffix("/")
+
+        # Lowercase on Windows for case-insensitive comparison (matching Lua behavior)
+        if platform.system() == "Windows":
+            normalized_path = normalized_path.lower()
+
         return hashlib.sha256(normalized_path.encode("utf-8")).hexdigest()
 
     def check_and_clean_cache(self, path: str, guessed_name: str) -> Optional[dict[str, Any]]:
