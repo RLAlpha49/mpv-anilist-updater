@@ -55,13 +55,17 @@ class CacheManager:
         """
         Generate SHA256 hash of normalized path.
 
+        Normalizes the path on all platforms to ensure consistent hashing,
+        especially on Windows where case sensitivity can vary.
+
         Args:
             path (str): Path to hash.
 
         Returns:
             str: Hashed path.
         """
-        normalized_path = os.path.normpath(path)
+        normalized_path = os.path.normcase(os.path.normpath(path))
+        normalized_path = normalized_path.replace(os.sep, "/")
         return hashlib.sha256(normalized_path.encode("utf-8")).hexdigest()
 
     def check_and_clean_cache(self, path: str, guessed_name: str) -> Optional[dict[str, Any]]:
