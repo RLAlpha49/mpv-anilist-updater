@@ -154,7 +154,7 @@ function M.initialize(script_dir)
         end
 
         -- Re-observe pause property for valid files
-        mp.observe_property(on_pause_change)
+        mp.observe_property("pause", "bool", on_pause_change)
 
         -- Start timer for this file
         if not isPaused then
