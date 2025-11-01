@@ -2,6 +2,7 @@
 
 local utils = require 'mp.utils'
 local mpoptions = require("mp.options")
+local path_utils = require 'lua.path_utils'
 
 -- Module table: Contains only the functions we want to export to other modules.
 -- Private helper functions (like get_mpv_config_dir, parse_directory_string) 
@@ -20,7 +21,7 @@ local function parse_directory_string(dir_string)
         local dirs = {}
         for dir in string.gmatch(dir_string, "([^,;]+)") do
             local trimmed = (dir:gsub("^%s*(.-)%s*$", "%1"):gsub('[\'"]', '')) -- trim
-            table.insert(dirs, M.normalize_path(trimmed))
+            table.insert(dirs, path_utils.normalize_path(trimmed))
         end
         return dirs
     else
@@ -28,26 +29,24 @@ local function parse_directory_string(dir_string)
     end
 end
 
--- Helper function to normalize path separators
-function M.normalize_path(p)
-    p = p:gsub("\\", "/")
-    if p:sub(-1) == "/" then
-        p = p:sub(1, -2)
-    end
-    return p
-end
-
 -- Helper function to create directory if it doesn't exist
 local function create_directory_if_needed(dir_path)
     if dir_path and dir_path ~= "" then
-        local f = io.open(dir_path, "r")
-        if f then
-            f:close()
-        else
-            -- Try to create the directory
-            local ok = os.execute('mkdir "' .. dir_path .. '" 2>nul') or os.execute('mkdir -p "' .. dir_path .. '" 2>/dev/null')
-            return ok ~= nil
+        -- Check if directory exists by trying to rename it to itself
+        local success = os.rename(dir_path, dir_path)
+        if success then
+            return true
         end
+        
+        -- Directory doesn't exist, try to create it
+        local ok = os.execute('mkdir "' .. dir_path .. '" 2>nul') or os.execute('mkdir -p "' .. dir_path .. '" 2>/dev/null')
+        if ok == 0 or ok == true then
+            return true
+        end
+        
+        -- If creation failed, emit a warning
+        mp.msg.warn("Could not create directory: " .. dir_path)
+        return false
     end
     return false
 end
