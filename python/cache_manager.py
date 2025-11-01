@@ -53,7 +53,7 @@ class CacheManager:
 
     def hash_path(self, path: str) -> str:
         """
-        Generate SHA256 hash of path.
+        Generate SHA256 hash of normalized path.
 
         Args:
             path (str): Path to hash.
@@ -61,7 +61,8 @@ class CacheManager:
         Returns:
             str: Hashed path.
         """
-        return hashlib.sha256(path.encode("utf-8")).hexdigest()
+        normalized_path = os.path.normpath(path)
+        return hashlib.sha256(normalized_path.encode("utf-8")).hexdigest()
 
     def check_and_clean_cache(self, path: str, guessed_name: str) -> Optional[dict[str, Any]]:
         """
