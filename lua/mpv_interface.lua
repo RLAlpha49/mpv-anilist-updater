@@ -41,8 +41,21 @@ function callback(success, result, error)
     if #messages > 0 then
         mp.osd_message(table.concat(messages, "\n"), 5)
     elseif result and result.status ~= 0 then
-        -- If there was an error but no OSD message, show generic error
-        mp.osd_message("Error: Update failed. Check console for details.", 3)
+        -- If there was an error but no OSD message, extract first non-empty stderr line
+        local error_msg = "Error: Update failed. Check console for details."
+        if result.stderr then
+            for line in result.stderr:gmatch("[^\r\n]+") do
+                if line:match("%S") then  -- Check if line is non-empty
+                    local truncated = line:sub(1, 100)  -- Truncate if long
+                    if #line > 100 then
+                        truncated = truncated .. "..."
+                    end
+                    error_msg = truncated
+                    break
+                end
+            end
+        end
+        mp.osd_message(error_msg, 3)
     end
 end
 
